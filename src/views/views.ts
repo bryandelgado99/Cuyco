@@ -101,10 +101,15 @@ export function buildHeader(actions: ViewActions): ViewHost {
     el,
     sync() {
       const v = State.view;
-      tabHome.classList.toggle("on", v === "overview" || v === "empty");
+      const home = v === "overview" || v === "empty";
+      tabHome.classList.toggle("on", home);
       tabChat.classList.toggle("on", v === "prompt");
       tabDrop.classList.toggle("on", v === "upload");
       gearBtn.classList.toggle("on", v === "settings");
+      clear(tabHome);
+      tabHome.append(svg(home ? ICONS.houseFill : ICONS.house, 13));
+      clear(tabChat);
+      tabChat.append(svg(v === "prompt" ? ICONS.bubbleFill : ICONS.bubble, 13));
       clear(gearBtn);
       gearBtn.append(svg(v === "settings" ? ICONS.gearFill : ICONS.gear, 14));
       clear(soundBtn);
@@ -252,7 +257,7 @@ function buildPill(task: AgentTask, actions: ViewActions): HTMLElement {
   if (task.pillBadge) {
     const colors = { approval: "#F5A524", finished: "#22C55E", error: "#F4505E" } as const;
     const icons = { approval: ICONS.bang, finished: ICONS.check, error: ICONS.xmark } as const;
-    const inner = h("i", { style: `background:${colors[task.pillBadge]}` }, svg(icons[task.pillBadge], 6, { stroke: task.pillBadge === "finished" ? 3 : 0 }));
+    const inner = h("i", { style: `background:${colors[task.pillBadge]}` }, svg(icons[task.pillBadge], 6));
     const badge = h("div", { class: "pill-badge" }, inner);
     badge.style.boxShadow = `0 0 4px ${colors[task.pillBadge]}99`;
     pill.append(badge);
