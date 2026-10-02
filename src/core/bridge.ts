@@ -52,8 +52,8 @@ export const Bridge = {
 
   openUrl: (url: string) => call<void>("open_url", { url }),
 
-  /** "Open terminal" → opens the folder in VS Code when `code` is on PATH. */
-  openInVSCode: (path: string | null) => call<boolean>("open_in_vscode", { path }),
+  /** "Open terminal" → opens the folder in the configured editor. */
+  openInEditor: (path: string | null) => call<boolean>("open_in_editor", { path }),
 
   quit: () => call<void>("quit_app"),
 

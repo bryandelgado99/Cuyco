@@ -30,6 +30,9 @@ pub struct Settings {
     /// "Cuy only": hide the agents panel (pills, mini-grid, overview, tabs).
     #[serde(default = "default_hide_agents")]
     pub hide_agents: bool,
+    /// Editor "Open terminal" launches: "vscode", "zed", "android-studio" or "system".
+    #[serde(default = "default_editor")]
+    pub editor: String,
 }
 
 fn default_model() -> String {
@@ -46,6 +49,10 @@ fn default_position() -> String {
 
 fn default_hide_agents() -> bool {
     false
+}
+
+fn default_editor() -> String {
+    "vscode".into()
 }
 
 impl Default for Settings {
@@ -68,6 +75,7 @@ impl Default for Settings {
             theme: default_theme(),
             position: default_position(),
             hide_agents: default_hide_agents(),
+            editor: default_editor(),
         }
     }
 }

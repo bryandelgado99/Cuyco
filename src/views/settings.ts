@@ -2,7 +2,7 @@
 // the old settings window did. Nothing is written to disk without a click.
 
 import { Bridge, type HookStatus } from "../core/bridge";
-import { State, type Settings } from "../core/state";
+import { State, EDITORS, type Settings } from "../core/state";
 import { applyTheme, type Theme } from "../core/theme";
 import { h, clear, dot } from "./dom";
 import { accordion, type AccordionSection } from "./accordion";
@@ -138,6 +138,11 @@ function generalPanel(): Control & { body: HTMLElement } {
     () => State.settings.position,
     (v) => { State.settings.position = v; save(); },
   );
+  const editor = segControl<Settings["editor"]>(
+    EDITORS.map((e) => [e.id, e.label] as const),
+    () => State.settings.editor,
+    (v) => { State.settings.editor = v; save(); },
+  );
   const cuyOnly = switchControl(
     () => State.settings.hideAgents,
     (v) => { State.settings.hideAgents = v; save(); },
@@ -155,6 +160,7 @@ function generalPanel(): Control & { body: HTMLElement } {
     row("Display", screen.el),
     row("Appearance", theme.el),
     row("Position", position.el),
+    row("Editor", editor.el),
     row("Cuy only", cuyOnly.el),
     row("Launch at startup", autostart.el),
   );
@@ -164,6 +170,7 @@ function generalPanel(): Control & { body: HTMLElement } {
     el: body,
     sync: () => {
       sound.sync(); auto.sync(); screen.sync(); theme.sync(); position.sync();
+      editor.sync();
       cuyOnly.sync(); autostart.sync();
       volume.value = String(State.settings.soundVolume);
       volume.style.opacity = State.settings.soundEnabled ? "1" : "0.4";

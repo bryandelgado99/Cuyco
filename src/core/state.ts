@@ -99,6 +99,8 @@ export interface Settings {
   position: "top" | "left" | "right";
   /** Hide the agents panel (pills, mini-grid, overview, tabs). */
   hideAgents: boolean;
+  /** Editor "Open terminal" launches. */
+  editor: "vscode" | "zed" | "android-studio" | "system";
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -116,7 +118,21 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: "system",
   position: "top",
   hideAgents: false,
+  editor: "vscode",
 };
+
+/** Editors "Open terminal" can launch (see the Rust `open_in_editor` command). */
+export const EDITORS: { id: Settings["editor"]; label: string }[] = [
+  { id: "vscode", label: "VS Code" },
+  { id: "zed", label: "Zed" },
+  { id: "android-studio", label: "Android Studio" },
+  { id: "system", label: "System" },
+];
+
+export function editorLabel(): string {
+  const e = EDITORS.find((x) => x.id === State.settings.editor);
+  return e ? e.label : "VS Code";
+}
 
 type Listener = () => void;
 

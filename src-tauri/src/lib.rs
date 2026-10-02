@@ -144,31 +144,40 @@ fn open_url(url: String) {
     platform::open_url(&url);
 }
 
-/// "Open terminal" opens the working folder in VS Code when `code` is on PATH,
-/// and falls back to the file manager otherwise.
+/// "Open terminal" opens the working folder in the configured editor when its
+/// launcher is on PATH, and falls back to the file manager otherwise.
 #[tauri::command]
-fn open_in_vscode(path: Option<String>) -> bool {
+fn open_in_editor(shared: State<Shared>, path: Option<String>) -> bool {
     // No shell anywhere near this. The path is a project folder chosen by
     // whoever is using Claude Code, and a shell would happily read `&`, `^`, `%`
     // or `$` in a folder name as syntax. Finding the launcher ourselves and
     // handing the path over as a separate argument keeps it a path.
+    let editor = shared.settings.lock().unwrap().editor.clone();
     let path = path.filter(|p| !p.is_empty());
     // It arrives in a hook payload: only an existing folder, given by its full
-    // path, goes any further. `code` would read `--something` as an option, and
-    // xdg-open would launch a file with whatever handles its type.
+    // path, goes any further. The launcher would read `--something` as an option,
+    // and xdg-open would launch a file with whatever handles its type.
     if let Some(p) = path.as_deref() {
         let p = std::path::Path::new(p);
         if !(p.is_absolute() && p.is_dir()) {
             return false;
         }
     }
-    if let Some(code) = platform::find_on_path("code") {
-        let mut cmd = Command::new(code);
-        if let Some(p) = path.as_deref() {
-            cmd.arg(p);
-        }
-        if platform::no_console(&mut cmd).spawn().is_ok() {
-            return true;
+    let stems: &[&str] = match editor.as_str() {
+        "zed" => &["zed"],
+        "android-studio" => &["studio", "studio64"],
+        "system" => &[],
+        _ => &["code"],
+    };
+    for stem in stems {
+        if let Some(bin) = platform::find_on_path(stem) {
+            let mut cmd = Command::new(bin);
+            if let Some(p) = path.as_deref() {
+                cmd.arg(p);
+            }
+            if platform::no_console(&mut cmd).spawn().is_ok() {
+                return true;
+            }
         }
     }
     if let Some(p) = path.as_deref() {
@@ -331,7 +340,7 @@ pub fn run() {
             focus_window,
             reposition,
             open_url,
-            open_in_vscode,
+            open_in_editor,
             quit_app,
             hooks_status,
             hooks_preview,

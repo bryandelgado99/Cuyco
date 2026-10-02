@@ -6,7 +6,7 @@
 
 import { h, svg, clear, dot } from "./dom";
 import { ICONS } from "./icons";
-import { State, type AgentTask } from "../core/state";
+import { State, editorLabel, type AgentTask } from "../core/state";
 import { Bridge } from "../core/bridge";
 
 /** Same shape as the Swift `timeAgo` computed properties. */
@@ -65,12 +65,13 @@ function idleCard(task: AgentTask, openSettings: () => void): HTMLElement {
 
   const actions = h("div", { class: "int-actions" });
   if (task.id === "integration_claude") {
+    const editorName = State.settings.editor === "system" ? null : editorLabel();
     actions.append(
       h("button", {
         class: "link-btn",
         style: `color:${task.color}b3`,
-        text: "Open Visual Studio Code",
-        onclick: () => void Bridge.openInVSCode(task.sessionCwd ?? null),
+        text: editorName ? `Open ${editorName}` : "Open folder",
+        onclick: () => void Bridge.openInEditor(task.sessionCwd ?? null),
       }),
     );
   } else if (task.id === "integration_n8n") {

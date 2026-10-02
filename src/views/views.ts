@@ -6,7 +6,7 @@ import { h, svg, clear, dot } from "./dom";
 import { buildSettingsView } from "./settings";
 import { ICONS } from "./icons";
 import { Ticker } from "./ticker";
-import { State, type AgentTask } from "../core/state";
+import { State, editorLabel, type AgentTask } from "../core/state";
 import { washRGBA, type IslandViewName, type Wash } from "../core/layout";
 import { createMiniBot, pruneMiniBots } from "../cuyco/minibots";
 import { buildPrompt } from "./chat";
@@ -217,6 +217,7 @@ function buildOverview(actions: ViewActions): ViewHost {
           task.id, detailOpen, task.state, task.steps.join("|"),
           info?.loaded, info?.error, info?.configured,
           JSON.stringify(info?.data ?? {}),
+          State.settings.editor,
         ].join("~");
         if (key !== cardKey) {
           cardKey = key;
@@ -241,7 +242,9 @@ function buildOverview(actions: ViewActions): ViewHost {
 }
 
 function buildPill(task: AgentTask, actions: ViewActions): HTMLElement {
-  const label = task.id === "integration_claude" ? "VS Code" : task.name;
+  const label = task.id === "integration_claude"
+    ? (State.settings.editor === "system" ? "Claude Code" : editorLabel())
+    : task.name;
   const canvas = createMiniBot(task, 24);
   const pill = h(
     "div",
