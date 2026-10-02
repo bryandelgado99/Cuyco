@@ -72,7 +72,7 @@ body {
   height: 176px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.22s ease-in-out;
+  transition: opacity var(--md-dur-medium) var(--md-ease-decel);
 }
 
 #upload-layer.on {
@@ -105,7 +105,7 @@ body {
 #views.hidden-by-upload {
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.22s ease-in-out;
+  transition: opacity var(--md-dur-medium) var(--md-ease-decel);
 }
 
 #bot-glow {
@@ -113,7 +113,8 @@ body {
   pointer-events: none;
   border-radius: 50%;
   filter: blur(6px);
-  transition: opacity 0.4s ease-in-out, background 0.4s ease-in-out;
+  transition: opacity var(--md-dur-long) var(--md-ease-decel),
+    background var(--md-dur-long) var(--md-ease-decel);
 }
 
 #countdown {
@@ -137,7 +138,7 @@ body {
   grid-auto-rows: 13px;
   gap: 3px;
   pointer-events: none;
-  transition: opacity 0.25s ease-in-out;
+  transition: opacity var(--md-dur-medium) var(--md-ease-decel);
 }
 
 /* A mini Cuyco: the slot is the body, the canvas is larger and overflows it so
@@ -164,7 +165,7 @@ body {
   padding: 8px 10px 10px;
   display: flex;
   flex-direction: column;
-  transition: opacity 0.2s ease-in-out;
+  transition: opacity var(--md-dur-medium) var(--md-ease-decel);
 }
 
 #header {
@@ -173,7 +174,7 @@ body {
   display: flex;
   align-items: center;
   margin: 0 -10px;
-  transition: opacity 0.2s ease-in-out;
+  transition: opacity var(--md-dur-medium) var(--md-ease-decel);
 }
 
 .tabs {
@@ -234,7 +235,7 @@ body {
   opacity: 0;
   transform: scale(0.97);
   pointer-events: none;
-  transition: opacity 0.16s ease-in;
+  transition: opacity var(--md-dur-short) var(--md-ease-accel);
 }
 
 .view.on {
@@ -811,7 +812,8 @@ input[type="range"]::-webkit-slider-thumb {
   color: var(--md-on-surface);
   border: 1.5px solid var(--md-outline);
   transform: scale(1.06);
-  transition: border-color 0.3s ease-out 0.45s, transform 0.3s ease-out 0.45s;
+  transition: border-color var(--md-dur-medium) var(--md-ease-decel) 0.45s,
+    transform var(--md-dur-medium) var(--md-ease-decel) 0.45s;
 }
 
 .chip.settled {
@@ -989,7 +991,7 @@ input[type="range"]::-webkit-slider-thumb {
 .drop-title {
   font: 500 13px var(--font);
   color: var(--md-on-surface);
-  transition: color 0.2s;
+  transition: color var(--md-dur-short) var(--md-ease-decel);
 }
 
 .drop-card.over .drop-title {

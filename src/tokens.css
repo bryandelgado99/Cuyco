@@ -228,3 +228,15 @@
   --md-inverse-surface: #322f35;
   --md-inverse-on-surface: #f5eff7;
 }
+
+/* Respect the OS "reduce motion" setting: state changes still land, movement
+   does not. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
