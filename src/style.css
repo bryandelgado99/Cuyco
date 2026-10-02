@@ -189,19 +189,16 @@ body {
   place-items: center;
   border: 0;
   background: transparent;
-  border-radius: 11px;
-  color: var(--dim-2);
-  cursor: default;
-}
-
-.tab:hover {
-  background: rgba(255, 255, 255, 0.07);
-  color: #b0b5be;
+  border-radius: var(--md-shape-full);
+  color: var(--md-on-surface-variant);
+  cursor: pointer;
+  transition: background var(--md-dur-short) var(--md-ease-decel),
+    color var(--md-dur-short) var(--md-ease-decel);
 }
 
 .tab.on {
-  background: var(--tab-on);
-  color: var(--ink);
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
 }
 
 .header-actions {
@@ -213,15 +210,16 @@ body {
 
 .header-actions button {
   border: 0;
+  border-radius: var(--md-shape-full);
   background: transparent;
-  color: var(--dim-2);
+  color: var(--md-on-surface-variant);
   display: grid;
   place-items: center;
-  cursor: default;
+  cursor: pointer;
 }
 
 .header-actions button.on {
-  color: var(--ink);
+  color: var(--md-primary);
 }
 
 #views {
@@ -292,67 +290,122 @@ body {
 /* ── Buttons ────────────────────────────────────────────────────────────── */
 
 .btn {
-  font: 500 12.5px var(--font);
-  padding: 7px 13px;
+  font: var(--md-font-label-large);
+  padding: 7px 14px;
   border: 0;
   border-radius: var(--md-shape-full);
-  cursor: default;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  transition: transform 0.08s ease-out, background 0.12s ease-out;
+  transition: border-radius var(--md-dur-short) var(--md-ease-pressed),
+    transform var(--md-dur-short) var(--md-ease-pressed);
 }
 
 .btn:active {
-  transform: scale(0.94);
+  transform: scale(0.96);
+  border-radius: var(--md-shape-m);
 }
 
 .btn.primary {
-  background: var(--ink);
-  color: #0b0c0e;
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
 }
 
 .btn.secondary {
-  background: rgba(255, 255, 255, 0.09);
-  color: var(--ink-2);
-}
-
-.btn.secondary:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: transparent;
+  color: var(--md-primary);
+  box-shadow: inset 0 0 0 1px var(--md-outline);
 }
 
 .btn .kbd {
   font-size: 10.5px;
   padding: 0 4px;
-  border-radius: 4px;
-  opacity: 0.55;
-}
-
-.btn.primary .kbd {
-  border: 1px solid rgba(0, 0, 0, 0.4);
-}
-
-.btn.secondary .kbd {
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: var(--md-shape-xs);
+  opacity: 0.6;
+  border: 1px solid var(--md-outline-variant);
 }
 
 .link-btn {
   border: 0;
   background: transparent;
-  font: 500 11px var(--font);
-  cursor: default;
+  font: var(--md-font-label-medium);
+  color: var(--md-primary);
+  border-radius: var(--md-shape-s);
+  cursor: pointer;
 }
 
 .icon-btn {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   border: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.07);
-  color: var(--dim-4);
+  border-radius: var(--md-shape-full);
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface-variant);
   display: grid;
   place-items: center;
-  cursor: default;
+  cursor: pointer;
+}
+
+/* ── State layers, focus and disabled (M3) ──────────────────────────────── */
+
+.tab,
+.header-actions button,
+.btn,
+.link-btn,
+.icon-btn,
+.seg button,
+.send-btn {
+  position: relative;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tab::before,
+.header-actions button::before,
+.btn::before,
+.link-btn::before,
+.icon-btn::before,
+.seg button::before,
+.send-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--md-dur-short) var(--md-ease-decel);
+}
+
+.tab:hover::before,
+.header-actions button:hover::before,
+.btn:hover::before,
+.link-btn:hover::before,
+.icon-btn:hover::before,
+.seg button:hover::before,
+.send-btn:hover::before {
+  opacity: var(--md-state-hover);
+}
+
+.tab:active::before,
+.header-actions button:active::before,
+.btn:active::before,
+.link-btn:active::before,
+.icon-btn:active::before,
+.seg button:active::before,
+.send-btn:active::before {
+  opacity: var(--md-state-press);
+}
+
+:where(button, a, input, select):focus-visible {
+  outline: 2px solid var(--md-primary);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  opacity: 0.38;
+  pointer-events: none;
 }
 
 /* ── Overview ───────────────────────────────────────────────────────────── */
@@ -642,18 +695,21 @@ body {
 
 .switch {
   position: relative;
-  width: 32px;
+  width: 34px;
   height: 18px;
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.15);
-  flex: 0 0 32px;
-  transition: background 0.18s;
-  cursor: default;
+  border-radius: var(--md-shape-full);
+  background: var(--md-surface-container-highest);
+  box-shadow: inset 0 0 0 1px var(--md-outline);
+  flex: 0 0 34px;
   border: 0;
+  cursor: pointer;
+  transition: background var(--md-dur-short) var(--md-ease-decel),
+    box-shadow var(--md-dur-short) var(--md-ease-decel);
 }
 
 .switch.on {
-  background: var(--green);
+  background: var(--md-primary);
+  box-shadow: none;
 }
 
 .switch::after {
@@ -664,29 +720,31 @@ body {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #fff;
-  transition: transform 0.18s;
+  background: var(--md-outline);
+  transition: transform var(--md-dur-medium) var(--md-ease-emphasized),
+    background var(--md-dur-short) var(--md-ease-decel);
 }
 
 .switch.on::after {
-  transform: translateX(14px);
+  transform: translateX(16px);
+  background: var(--md-on-primary);
 }
 
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  height: 3px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.2);
+  height: 4px;
+  border-radius: var(--md-shape-full);
+  background: var(--md-surface-container-highest);
   width: 72px;
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 11px;
-  height: 11px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--md-primary);
 }
 
 .seg {
@@ -696,18 +754,20 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .seg button {
-  font: 400 11px var(--font);
-  padding: 3px 7px;
+  font: var(--md-font-label-medium);
+  padding: 3px 8px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--md-shape-full);
   background: transparent;
-  color: var(--dim-3);
-  cursor: default;
+  color: var(--md-on-surface-variant);
+  cursor: pointer;
+  transition: background var(--md-dur-short) var(--md-ease-decel),
+    color var(--md-dur-short) var(--md-ease-decel);
 }
 
 .seg button.on {
-  background: #252830;
-  color: var(--ink);
+  background: var(--md-secondary-container);
+  color: var(--md-on-secondary-container);
 }
 
 /* ── Utility ────────────────────────────────────────────────────────────── */
@@ -861,17 +921,19 @@ input[type="range"]::-webkit-slider-thumb {
   height: 28px;
   flex: 0 0 28px;
   border: 0;
-  border-radius: 50%;
-  background: var(--ink);
-  color: #0b0c0e;
+  border-radius: var(--md-shape-full);
+  background: var(--md-primary);
+  color: var(--md-on-primary);
   display: grid;
   place-items: center;
-  cursor: default;
-  transition: transform 0.08s ease-out;
+  cursor: pointer;
+  transition: border-radius var(--md-dur-short) var(--md-ease-pressed),
+    transform var(--md-dur-short) var(--md-ease-pressed);
 }
 
 .send-btn:active {
   transform: scale(0.94);
+  border-radius: var(--md-shape-m);
 }
 
 /* ── Drop zone ──────────────────────────────────────────────────────────── */
