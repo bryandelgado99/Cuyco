@@ -676,6 +676,7 @@ export class BotEngine {
 
     this.drawEyes(x, body, R, rx, ry);
     this.drawNose(x, body, R, rx, ry);
+    this.drawWhiskers(x, body, R, rx, ry);
     if (this.morph > 0.05) this.drawMouth(x, body, R);
 
     x.restore();
@@ -959,6 +960,37 @@ export class BotEngine {
     x.beginPath();
     x.ellipse(nx - w * 0.14, ny - h * 0.24, w * 0.11, h * 0.16, 0, 0, Math.PI * 2);
     x.fill();
+    x.restore();
+  }
+
+  /** A few small whiskers around the muzzle; they fade out with the box morph. */
+  private drawWhiskers(x: CanvasRenderingContext2D, body: Path2D, R: number, rx: number, ry: number) {
+    const a = 1 - this.morph;
+    if (a <= 0.01 || this.isMini) return;
+    const nosePitch = NOSE_P + this.pitch + this.roll;
+    const cp = Math.cos(nosePitch);
+    const nx = Math.sin(this.yaw) * cp * rx;
+    const ny = -Math.sin(nosePitch) * ry;
+
+    x.save();
+    x.clip(body);
+    x.globalAlpha = a * 0.5;
+    x.strokeStyle = "rgb(70,52,42)";
+    x.lineWidth = Math.max(0.6, R * 0.028);
+    x.lineCap = "round";
+    for (const sd of [-1, 1]) {
+      const bx = nx + sd * R * 0.12;
+      const by = ny + R * 0.03;
+      for (let i = -1; i <= 1; i++) {
+        const len = R * (0.7 - Math.abs(i) * 0.1) * cp;
+        const tipX = bx + sd * len;
+        const tipY = by + i * R * 0.22 + R * 0.08;
+        x.beginPath();
+        x.moveTo(bx, by);
+        x.quadraticCurveTo(bx + sd * len * 0.5, by + i * R * 0.1 - R * 0.06, tipX, tipY);
+        x.stroke();
+      }
+    }
     x.restore();
   }
 

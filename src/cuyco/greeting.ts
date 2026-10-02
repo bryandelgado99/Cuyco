@@ -449,6 +449,27 @@ function drawCuyco(x: CanvasRenderingContext2D, p: Pose) {
   x.fill();
   x.restore();
 
+  // Whiskers
+  x.save();
+  x.clip(body);
+  x.strokeStyle = "rgba(70,52,42,0.5)";
+  x.lineWidth = Math.max(0.6, hh * 0.03);
+  x.lineCap = "round";
+  for (const sd of [-1, 1] as const) {
+    const bx = nx + sd * hw * 0.12;
+    const by = ny + hh * 0.03;
+    for (let i = -1; i <= 1; i++) {
+      const len = hw * (0.6 - Math.abs(i) * 0.08);
+      const tipX = bx + sd * len;
+      const tipY = by + i * hh * 0.2 + hh * 0.08;
+      x.beginPath();
+      x.moveTo(bx, by);
+      x.quadraticCurveTo(bx + sd * len * 0.5, by + i * hh * 0.1 - hh * 0.05, tipX, tipY);
+      x.stroke();
+    }
+  }
+  x.restore();
+
   // Activity badge
   if (p.badge > 0.01) {
     const br = hh * 0.3;
