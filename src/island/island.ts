@@ -552,7 +552,7 @@ export class Island {
     void onDragDrop((e) => this.onDragDrop(e));
 
     // Outside Tauri (plain browser) drive the cursor from DOM events so the
-    // island can be inspected with `npm run dev`.
+    // island can be inspected with `bun run dev`.
     if (!IS_TAURI) this.followPageCursor();
   }
 

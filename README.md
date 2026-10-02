@@ -51,22 +51,22 @@ dizzy if you insist, and tells you the moment Claude Code needs you.
 
 ## Build it yourself
 
-You need [Rust](https://rustup.rs), [Node 20+](https://nodejs.org), and — on
+You need [Rust](https://rustup.rs), [Bun](https://bun.sh), and — on
 Windows — the **MSVC build tools** (Visual Studio Build Tools with “Desktop
 development with C++”). WebView2 ships with Windows 10/11.
 
 ```powershell
-npm install
-npm run tauri dev      # live-reloading development build
-npm run pack           # builds the installer and drops it in release/
+bun install
+bun run tauri dev      # live-reloading development build
+bun run pack           # builds the installer and drops it in release/
 ```
 
-`npm run dev` alone serves the front end in an ordinary browser, which is enough
+`bun run dev` alone serves the front end in an ordinary browser, which is enough
 to work on the island's looks. It also serves `dev/upload-preview.html`, which
 replays the whole file-drop choreography on a loop — the one part of the UI that
 otherwise needs a real drag from Explorer to see. Neither page ships in the app.
 
-`npm run pack` leaves two files in `release/`:
+`bun run pack` leaves two files in `release/`:
 
 ```
 Cuyco-Windows-X.Y.Z-setup.exe    the versioned installer
@@ -80,8 +80,8 @@ cuy in the notification area are the whole app, and Quit lives in its menu.
 The character and the icons are **drawn in code**, not shipped as image assets:
 
 ```powershell
-npm run icons          # regenerates src-tauri/icons from scripts/gen-icons.mjs
-npm run sounds         # regenerates the 28 WAVs from scripts/gen-sounds.mjs
+bun run icons          # regenerates src-tauri/icons from scripts/gen-icons.mjs
+bun run sounds         # regenerates the 28 WAVs from scripts/gen-sounds.mjs
 ```
 
 ### Layout
@@ -125,9 +125,9 @@ sudo apt install build-essential pkg-config \
   libwebkit2gtk-4.1-dev libgtk-layer-shell-dev libayatana-appindicator3-dev \
   librsvg2-dev libssl-dev libdbus-1-dev patchelf \
   gstreamer1.0-plugins-base gstreamer1.0-plugins-good
-npm install
-npm run tauri dev      # live-reloading development build
-npm run pack           # AppImage, .deb and .rpm in release/
+bun install
+bun run tauri dev      # live-reloading development build
+bun run pack           # AppImage, .deb and .rpm in release/
 ```
 
 What changes on Linux:

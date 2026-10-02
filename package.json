@@ -3,16 +3,17 @@
   "private": true,
   "version": "0.1.1",
   "type": "module",
+  "packageManager": "bun@1.3.14",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "icons": "node scripts/gen-icons.mjs",
-    "sounds": "node scripts/gen-sounds.mjs",
+    "icons": "bun scripts/gen-icons.mjs",
+    "sounds": "bun scripts/gen-sounds.mjs",
     "tauri": "tauri",
     "predev": "cargo build --release -p cuyco-hook",
     "prebuild": "cargo build --release -p cuyco-hook",
-    "pack": "tauri build && node scripts/pack.mjs"
+    "pack": "tauri build && bun scripts/pack.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

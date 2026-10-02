@@ -7,7 +7,7 @@ of the app right after the initial rebrand. Tick items off as they land.
 
 - [ ] **Review the cuy in motion.** The character was redrawn as a guinea pig
       (rounder body, small ears, cream/caramel palette) but has not been eyeballed
-      yet. Run `npm run dev`, then tune ear size/placement and body proportions.
+      yet. Run `bun run dev`, then tune ear size/placement and body proportions.
 - [ ] **Give it a face.** Add a nose/muzzle and per-state expressions — today the
       mouth only shows up in the box morph, and every state shares the same face.
 - [ ] **Mini characters.** The integration pills reuse the same drawing at tiny
@@ -42,7 +42,7 @@ of the app right after the initial rebrand. Tick items off as they land.
 ## Packaging & release
 
 - [ ] **Run the Rust build.** Only the front end was verified (`tsc` + `vite`).
-      `npm run pack`, and the Linux AppImage/.deb/.rpm, still need a build with
+      `bun run pack`, and the Linux AppImage/.deb/.rpm, still need a build with
       the Rust toolchain.
 - [ ] **Installer and tray branding** check on a real install.
 - [ ] **Code signing** (Windows) to avoid the Defender false positive the

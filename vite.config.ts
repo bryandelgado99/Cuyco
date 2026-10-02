@@ -5,7 +5,7 @@ import { resolve, join, extname } from "node:path";
 // ───────────────────────────────────────────────────────────────────────────────
 // THE one and only place the sound folder is declared.
 // Cuyco's 28 WAVs live in `sounds/` at the repo root and are served at
-// /sounds/<name>.wav. Regenerate them with `npm run sounds`.
+// /sounds/<name>.wav. Regenerate them with `bun run sounds`.
 export const SOUNDS_DIR = resolve(__dirname, "sounds");
 // ───────────────────────────────────────────────────────────────────────────────
 

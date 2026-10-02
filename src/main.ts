@@ -67,7 +67,7 @@ async function main() {
   island.launch();
 
   // In a plain browser there is no wake strip behind the cursor: make the whole
-  // page wake the island so the visuals can be checked with `npm run dev`.
+  // page wake the island so the visuals can be checked with `bun run dev`.
   if (!IS_TAURI) {
     document.addEventListener("click", () => Sound.resume(), { once: true });
   }
