@@ -424,6 +424,23 @@ function drawCuyco(x: CanvasRenderingContext2D, p: Pose) {
   }
   x.restore();
 
+  // Nose
+  x.save();
+  x.clip(body);
+  x.fillStyle = "#16171A";
+  const nw = hw * 0.2;
+  const nh = hh * 0.17;
+  const nx = p.lookX * hw * 0.1;
+  const ny = hh * 0.46;
+  x.beginPath();
+  x.moveTo(nx - nw / 2, ny - nh * 0.4);
+  x.quadraticCurveTo(nx, ny - nh * 0.72, nx + nw / 2, ny - nh * 0.4);
+  x.quadraticCurveTo(nx + nw * 0.46, ny + nh * 0.5, nx, ny + nh * 0.5);
+  x.quadraticCurveTo(nx - nw * 0.46, ny + nh * 0.5, nx - nw / 2, ny - nh * 0.4);
+  x.closePath();
+  x.fill();
+  x.restore();
+
   // Activity badge
   if (p.badge > 0.01) {
     const br = hh * 0.3;

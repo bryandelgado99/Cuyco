@@ -674,6 +674,7 @@ export class BotEngine {
     }
 
     this.drawEyes(x, body, R, rx, ry);
+    this.drawNose(x, body, R, rx, ry);
     if (this.morph > 0.05) this.drawMouth(x, body, R);
 
     x.restore();
@@ -922,6 +923,34 @@ export class BotEngine {
         break;
       }
     }
+  }
+
+  /** Small guinea-pig nose between the eyes; fades out as the box morph takes over. */
+  private drawNose(x: CanvasRenderingContext2D, body: Path2D, R: number, rx: number, ry: number) {
+    const a = 1 - this.morph;
+    if (a <= 0.01) return;
+    const nx = Math.sin(this.yaw) * rx * 0.07;
+    const ny = ry * 0.46;
+    const w = R * 0.22;
+    const h = R * 0.16;
+
+    x.save();
+    x.clip(body);
+    x.globalAlpha = a;
+    x.fillStyle = this.isMini ? MINI_INK : INK;
+    x.beginPath();
+    x.moveTo(nx - w / 2, ny - h * 0.4);
+    x.quadraticCurveTo(nx, ny - h * 0.72, nx + w / 2, ny - h * 0.4);
+    x.quadraticCurveTo(nx + w * 0.46, ny + h * 0.5, nx, ny + h * 0.5);
+    x.quadraticCurveTo(nx - w * 0.46, ny + h * 0.5, nx - w / 2, ny - h * 0.4);
+    x.closePath();
+    x.fill();
+    x.globalAlpha = a * 0.55;
+    x.fillStyle = "rgba(255,255,255,0.9)";
+    x.beginPath();
+    x.ellipse(nx - w * 0.14, ny - h * 0.24, w * 0.11, h * 0.16, 0, 0, Math.PI * 2);
+    x.fill();
+    x.restore();
   }
 
   /** Mailbox slot: dark pill cut into the box face, with rim and lip highlights. */
