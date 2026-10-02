@@ -9,7 +9,6 @@ import { Ticker } from "./ticker";
 import { State, editorLabel, type AgentTask } from "../core/state";
 import { washRGBA, type IslandViewName, type Wash } from "../core/layout";
 import { createMiniBot, pruneMiniBots } from "../cuyco/minibots";
-import { buildPrompt } from "./chat";
 import { buildChoose, buildUpload, buildUploading } from "./upload";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 
@@ -18,6 +17,8 @@ export interface ViewActions {
   collapse(): void;
   setFocus(id: string): void;
   openTerminal(): void;
+  /** "Open folder" on the drop card — the folder holding the file just dropped. */
+  openDroppedFolder(): void;
   /** The ↗ button: opens whatever the focused pill points at. */
   openTarget(): void;
   openUrl(url: string): void;
@@ -69,11 +70,11 @@ function agentWho(task: AgentTask | null, label: string): HTMLElement {
   return row;
 }
 
-function stack(padLeft: number, padRight: number, ...children: Node[]): HTMLElement {
+function stack(padLeft: string, padRight: string, ...children: Node[]): HTMLElement {
   const el = h("div", { class: "stack" }, ...children);
   // Kept as custom properties so the padding can mirror with the island anchor.
-  el.style.setProperty("--pad-l", `${padLeft}px`);
-  el.style.setProperty("--pad-r", `${padRight}px`);
+  el.style.setProperty("--pad-l", padLeft);
+  el.style.setProperty("--pad-r", padRight);
   return el;
 }
 
@@ -81,7 +82,6 @@ function stack(padLeft: number, padRight: number, ...children: Node[]): HTMLElem
 
 export function buildHeader(actions: ViewActions): ViewHost {
   const tabHome = h("button", { class: "tab", title: "Overview", onclick: () => go("overview") }, svg(ICONS.house, 13));
-  const tabChat = h("button", { class: "tab", title: "Ask", onclick: () => go("prompt") }, svg(ICONS.bubble, 13));
   const tabDrop = h("button", { class: "tab", title: "Drop", onclick: () => go("upload") }, svg(ICONS.plus, 13));
 
   const gearBtn = h("button", { title: "Settings", onclick: () => go("settings") }, svg(ICONS.gear, 14));
@@ -92,7 +92,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
     actions.setView(v);
   }
 
-  const tabsEl = h("div", { class: "tabs" }, tabHome, tabChat, tabDrop);
+  const tabsEl = h("div", { class: "tabs" }, tabHome, tabDrop);
   const el = h(
     "div",
     { id: "header" },
@@ -106,13 +106,10 @@ export function buildHeader(actions: ViewActions): ViewHost {
       const v = State.view;
       const home = v === "overview" || v === "empty";
       tabHome.classList.toggle("on", home);
-      tabChat.classList.toggle("on", v === "prompt");
       tabDrop.classList.toggle("on", v === "upload");
       gearBtn.classList.toggle("on", v === "settings");
       clear(tabHome);
       tabHome.append(svg(home ? ICONS.houseFill : ICONS.house, 13));
-      clear(tabChat);
-      tabChat.append(svg(v === "prompt" ? ICONS.bubbleFill : ICONS.bubble, 13));
       clear(gearBtn);
       gearBtn.append(svg(v === "settings" ? ICONS.gearFill : ICONS.gear, 14));
       clear(soundBtn);
@@ -163,7 +160,6 @@ function buildOverview(actions: ViewActions): ViewHost {
       cardKey = "";
       State.notify();
     },
-      openSettings: () => actions.setView("settings"),
   };
 
   return {
@@ -290,15 +286,15 @@ function lighten(hex: string, amount: number): string {
 function buildEmpty(actions: ViewActions): ViewHost {
   const body = h(
     "div",
-    { class: "stack", style: "padding:0 18px 0 118px;flex-direction:row;align-items:center;gap:16px" },
+    { class: "stack", style: "padding:0 18px 0 var(--cuy-col);flex-direction:row;align-items:center;gap:16px" },
     h(
       "div",
       { style: "display:flex;flex-direction:column;gap:5px" },
       h("div", { class: "title", text: "Nothing running right now." }),
-      h("div", { class: "sub", text: "Drop a file or window, or ask me anything." }),
+      h("div", { class: "sub", text: "Hook an agent in Settings, or drop a file to get started." }),
     ),
     h("div", { class: "grow" }),
-    btn("Ask Claude", "primary", () => actions.setView("prompt")),
+    btn("Drop a file", "primary", () => actions.setView("upload")),
   );
   return { el: h("div", { class: "view" }, card(null, body)), sync() {} };
 }
@@ -309,7 +305,7 @@ function buildApproval(actions: ViewActions): ViewHost {
   const who = h("div");
   const code = h("div", { class: "code" });
   const row = h("div", { class: "actions" });
-  const el = h("div", { class: "view" }, card("amber", stack(116, 16, who, code, row)));
+  const el = h("div", { class: "view" }, card("amber", stack("var(--cuy-col)", "16px", who, code, row)));
   let rowKey = "";
   return {
     el,
@@ -340,7 +336,7 @@ function buildQuestion(): ViewHost {
   const who = h("div");
   const title = h("div", { class: "title" });
   const row = h("div", { class: "actions" });
-  const el = h("div", { class: "view" }, card("cyan", stack(116, 16, who, title, row)));
+  const el = h("div", { class: "view" }, card("cyan", stack("var(--cuy-col)", "16px", who, title, row)));
   return {
     el,
     sync() {
@@ -364,7 +360,7 @@ function buildError(actions: ViewActions): ViewHost {
     btn("Retry", "primary", () => actions.setView(State.defaultView())),
     btn("Open in n8n", "secondary", () => actions.openUrl("")),
   );
-  const el = h("div", { class: "view" }, card("red", stack(116, 16, who, title, detail, row)));
+  const el = h("div", { class: "view" }, card("red", stack("var(--cuy-col)", "16px", who, title, detail, row)));
   return {
     el,
     sync() {
@@ -386,7 +382,7 @@ function buildFinished(actions: ViewActions): ViewHost {
     btn("Open terminal", "primary", () => actions.openTerminal()),
     btn("OK", "secondary", () => actions.collapse()),
   );
-  const el = h("div", { class: "view" }, card("green", stack(116, 16, who, title, row)));
+  const el = h("div", { class: "view" }, card("green", stack("var(--cuy-col)", "16px", who, title, row)));
   return {
     el,
     sync() {
@@ -402,7 +398,7 @@ function buildFinished(actions: ViewActions): ViewHost {
 function buildConfused(): ViewHost {
   const body = h(
     "div",
-    { class: "stack", style: "padding:0 18px 0 128px" },
+    { class: "stack", style: "padding:0 18px 0 var(--cuy-col)" },
     h("div", { class: "title", text: "Too many hits at once." }),
     h("div", { class: "sub", text: "Give me a sec — back to work in three seconds." }),
   );
@@ -413,7 +409,7 @@ function buildConfused(): ViewHost {
 
 function buildNote(): ViewHost {
   const title = h("div", { class: "title" });
-  const el = h("div", { class: "view" }, card(null, h("div", { class: "stack", style: "padding:0 18px 0 98px" }, title)));
+  const el = h("div", { class: "view" }, card(null, h("div", { class: "stack", style: "padding:0 18px 0 var(--cuy-col)" }, title)));
   return {
     el,
     sync() {
@@ -427,7 +423,7 @@ function buildNote(): ViewHost {
 function buildPlaceholder(title: string, sub: string): ViewHost {
   const body = h(
     "div",
-    { class: "stack", style: "padding:0 18px 0 118px" },
+    { class: "stack", style: "padding:0 18px 0 var(--cuy-col)" },
     h("div", { class: "title", text: title }),
     h("div", { class: "sub", text: sub }),
   );
@@ -436,10 +432,7 @@ function buildPlaceholder(title: string, sub: string): ViewHost {
 
 // ── Registry ──────────────────────────────────────────────────────────────────
 
-export function buildViews(
-  actions: ViewActions,
-  onChatHeightChange: () => void,
-): Map<IslandViewName, ViewHost> {
+export function buildViews(actions: ViewActions): Map<IslandViewName, ViewHost> {
   const map = new Map<IslandViewName, ViewHost>();
   map.set("overview", buildOverview(actions));
   map.set("empty", buildEmpty(actions));
@@ -450,7 +443,6 @@ export function buildViews(
   map.set("confused", buildConfused());
   map.set("note", buildNote());
   map.set("settings", buildSettingsView());
-  map.set("prompt", buildPrompt(onChatHeightChange));
   map.set("upload", buildUpload());
   map.set("uploading", buildUploading());
   map.set("choose", buildChoose(actions));

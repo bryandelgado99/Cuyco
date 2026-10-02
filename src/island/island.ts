@@ -5,7 +5,7 @@ import { Tracked, Spring, clamp } from "../core/anim";
 import { Bridge, IS_TAURI, onDragDrop } from "../core/bridge";
 import {
   EXPANDED_CORNER, EXPANDED_W, NOTCH_W, PANEL_H, PANEL_W,
-  ROUNDED_CORNER, VIEW_LAYOUTS, botGlowColor, botGlowOpacity, botPosition, chatPromptHeight,
+  ROUNDED_CORNER, VIEW_LAYOUTS, botGlowColor, botGlowOpacity, botPosition,
   islandSize,
   type Anchor, type IslandMode, type IslandViewName,
 } from "../core/layout";
@@ -17,6 +17,7 @@ import { createMiniBot, pruneMiniBots, syncMiniBotStates, tickMiniBots } from ".
 import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
+import { settingsMenuOpen } from "../views/settings";
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
 
@@ -24,11 +25,16 @@ const BOT_OVERHANG = 40;
 /** Same margin as the Rust hit test (src-tauri/src/island.rs). */
 const HIT_MARGIN = 14;
 
+/** The folder holding `path`, for the drop card's "Open folder". */
+function folderOf(path: string): string {
+  return path.replace(/[\\/][^\\/]+$/, "");
+}
+
 /** The three views the drop sequence owns; leaving them stops the engine. */
 const UPLOAD_VIEWS: ReadonlySet<IslandViewName> = new Set(["upload", "uploading", "choose"]);
 
 /** Views that hold text fields, so the island has to take keyboard focus. */
-const FOCUS_VIEWS: ReadonlySet<IslandViewName> = new Set(["prompt", "settings"]);
+const FOCUS_VIEWS: ReadonlySet<IslandViewName> = new Set(["settings"]);
 
 /** Seconds between the drop and the moment the progress bar starts filling. */
 const PRE_PROGRESS = USC.T_PROG_START - USC.T_DROP;
@@ -122,6 +128,10 @@ export class Island {
         const cwd = State.focusTask?.sessionCwd ?? null;
         void Bridge.openInEditor(cwd);
       },
+      openDroppedFolder: () => {
+        const path = State.droppedFile?.path;
+        void Bridge.openInEditor(path ? folderOf(path) : null);
+      },
       // The ↗ button — same targets as openAgentTarget() on macOS.
       openTarget: () => {
         const task = State.focusTask;
@@ -183,7 +193,7 @@ export class Island {
     this.countdown = h("div", { id: "countdown" });
 
     this.header = buildHeader(actions);
-    this.views = buildViews(actions, () => this.animateGeometry(false));
+    this.views = buildViews(actions);
     this.viewsEl = h("div", { id: "views" });
     for (const v of this.views.values()) this.viewsEl.append(v.el);
     this.contentEl = h("div", { id: "content" }, this.header.el, this.viewsEl);
@@ -191,11 +201,9 @@ export class Island {
     // The drop sequence draws the card, the bar and its own Cuyco. It sits under
     // the header, which stays visible on top of it exactly as on macOS.
     this.uploadCanvas = new UploadCanvas({
-      ask: () => {
-        State.promptContext = State.droppedFile
-          ? { kind: "file", name: State.droppedFile.name, path: State.droppedFile.path }
-          : null;
-        this.setView("prompt");
+      reveal: () => {
+        const path = State.droppedFile?.path;
+        void Bridge.openInEditor(path ? folderOf(path) : null);
       },
       cancel: () => this.setView(State.defaultView()),
     });
@@ -293,6 +301,11 @@ export class Island {
   /** True while the drop sequence owns the island body. */
   private get uploadActive(): boolean {
     return State.mode === "expanded" && UploadSeq.isActive && UPLOAD_VIEWS.has(State.view);
+  }
+
+  /** True when the compact pill has another agent to show below the cuy. */
+  private get showAgents(): boolean {
+    return !State.settings.hideAgents && State.otherTasks.length > 0;
   }
 
   /** Navigating out of the drop flow ends the sequence, as on macOS. */
@@ -399,9 +412,6 @@ export class Island {
   private swallow(path: string) {
     const name = path.split(/[\\/]/).pop() || "file";
     State.droppedFile = { name, path };
-    State.promptContext = { kind: "file", name, path };
-    State.chatHistory = [];
-    void Bridge.chatReset();
 
     UploadSeq.performDrop(State.uploadDuration);
     this.uploadTens = 0;
@@ -419,7 +429,6 @@ export class Island {
     void Bridge.ingestFile(path)
       .then((file) => {
         State.droppedFile = { name: file.name, path: file.path };
-        State.promptContext = { kind: "file", name: file.name, path: file.path };
         State.notify();
       })
       .catch((err) => {
@@ -462,7 +471,7 @@ export class Island {
   // ── Geometry ────────────────────────────────────────────────────────────────
 
   private targetSize(): { w: number; h: number; r: number } {
-    const { w, h } = islandSize(State.mode, State.view, State.chatHistory.length, this.anchor);
+    const { w, h } = islandSize(State.mode, State.view, this.anchor, this.showAgents);
     const r = State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
     // Docked sideways the card is exactly as tall as its content.
     const height =
@@ -610,7 +619,10 @@ export class Island {
     });
 
     window.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned) this.collapse();
+      // An open settings dropdown consumes Escape first.
+      if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned && !settingsMenuOpen()) {
+        this.collapse();
+      }
       State.lastActivity = performance.now();
     });
 
@@ -809,7 +821,9 @@ export class Island {
   };
 
   private updateBotTargets() {
-    const p = botPosition(State.mode, State.view, this.height.value, State.uploadProgress, this.anchor);
+    const p = botPosition(
+      State.mode, State.view, this.height.value, State.uploadProgress, this.anchor, this.showAgents,
+    );
     this.botCx.target = p.cx;
     this.botCy.target = p.cy;
     this.botSize.target = p.diameter / 0.6;
@@ -907,6 +921,13 @@ export class Island {
     const expanded = State.mode === "expanded";
     const greetingActive = expanded && State.view === "greeting";
 
+    // Reserve the cuy's column so content never sits under it: its body reaches
+    // roughly 0.6× its diameter either side of botX, plus a gutter. The CSS reads
+    // this as --cuy-col, and mirrors it for a right dock.
+    const layout = VIEW_LAYOUTS[State.view];
+    const reserve = Math.round(layout.botX + layout.botDiameter * 0.6 + 14);
+    this.islandEl.style.setProperty("--cuy-col", `${reserve}px`);
+
     this.contentEl.style.opacity = expanded && !greetingActive ? "1" : "0";
     this.contentEl.style.pointerEvents = expanded && !greetingActive ? "auto" : "none";
     this.greetingCanvas.style.display = greetingActive ? "block" : "none";
@@ -918,24 +939,22 @@ export class Island {
       if (on) view.sync();
     }
 
-    // Only views with text fields (chat, settings) make the island take
-    // keyboard focus.
+    // Only views with text fields (settings) make the island take keyboard
+    // focus.
     if (this.lastSyncedView !== State.view) {
       const needsFocus = FOCUS_VIEWS.has(State.view);
       const hadFocus = this.lastSyncedView != null && FOCUS_VIEWS.has(this.lastSyncedView);
       this.lastSyncedView = State.view;
       if (needsFocus) {
         void Bridge.focusWindow(true);
-        if (State.view === "prompt") {
-          window.setTimeout(() => this.views.get("prompt")?.focus?.(), 120);
-        }
       } else if (hadFocus) {
         void Bridge.focusWindow(false);
       }
     }
 
-    // Compact mini grid
-    const showGrid = State.mode === "compact" && !State.settings.hideAgents;
+    // Compact mini grid — only when there is another agent to show, so the pill
+    // shrinks to just the cuy otherwise.
+    const showGrid = State.mode === "compact" && this.showAgents;
     this.miniGrid.style.opacity = showGrid ? "1" : "0";
     if (showGrid) {
       const others = State.otherTasks.slice(0, 4);
@@ -953,8 +972,8 @@ export class Island {
     syncMiniBotStates(State.tasks);
     this.engine.setState(State.effectiveState);
 
-    // Docked sideways, size the card to its content (the chat keeps its own height).
-    if (this.anchor !== "top" && State.mode === "expanded" && State.view !== "prompt") {
+    // Docked sideways, size the card to its content.
+    if (this.anchor !== "top" && State.mode === "expanded") {
       const next = this.measureContentHeight();
       if (next != null && (this.contentH == null || Math.abs(next - this.contentH) > 1)) {
         this.contentH = next;
@@ -976,9 +995,5 @@ export class Island {
 
   get panelSize() {
     return { w: PANEL_W, h: PANEL_H };
-  }
-
-  get chatHeight() {
-    return chatPromptHeight(State.chatHistory.length);
   }
 }

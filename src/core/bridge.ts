@@ -45,7 +45,7 @@ export const Bridge = {
   setIslandRect: (x: number, y: number, width: number, height: number) =>
     call<void>("set_island_rect", { x, y, width, height }),
 
-  /** Give the window keyboard focus (chat field) and take it away again. */
+  /** Give the window keyboard focus (the settings fields) and take it away again. */
   focusWindow: (focused: boolean) => call<void>("focus_window", { focused }),
 
   reposition: () => call<void>("reposition"),
@@ -81,11 +81,7 @@ export const Bridge = {
   /** "Nobody can act on this" — Claude Code asks in the terminal right away. */
   approvalDecline: (requestId: string) => call<void>("approval_decline", { requestId }),
 
-  // ── Chat, files, secrets ──────────────────────────────────────────────────
-  /** One chat turn. The API key and any file bytes never leave Rust. */
-  chatSend: (query: string, context: ChatContext | null) =>
-    callOrThrow<{ text: string }>("chat_send", { query, context }),
-  chatReset: () => call<void>("chat_reset"),
+  // ── Files and secrets ─────────────────────────────────────────────────────
   /** Copies a dropped file into the inbox. */
   ingestFile: (path: string) => callOrThrow<DroppedFile>("ingest_file", { path }),
   /** Only ever tells you whether a key exists — never its value. */
@@ -108,10 +104,6 @@ export interface IntegrationUpdate {
   error: string | null;
   event: { success: boolean; label: string; detail: string | null } | null;
 }
-
-export type ChatContext =
-  | { kind: "file"; name: string; path: string }
-  | { kind: "window"; appName: string; title: string; url?: string };
 
 export interface DroppedFile {
   name: string;

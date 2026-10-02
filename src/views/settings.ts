@@ -9,12 +9,6 @@ import { ICONS } from "./icons";
 import { accordion, type AccordionSection } from "./accordion";
 import type { ViewHost } from "./views";
 
-const MODELS: [string, string][] = [
-  ["claude-opus-5", "Claude Opus 5"],
-  ["claude-sonnet-5", "Claude Sonnet 5"],
-  ["claude-haiku-4-5", "Claude Haiku 4.5"],
-];
-
 interface IntegrationDef {
   id: string;
   name: string;
@@ -437,78 +431,6 @@ function agentsPanel(): { body: HTMLElement; status: HTMLElement; sync: () => vo
   return { body, status: statusEl, sync, refresh };
 }
 
-// ── Claude (API) ──────────────────────────────────────────────────────────────
-
-function apiPanel(): { body: HTMLElement; status: HTMLElement; sync: () => void; refresh: () => Promise<void> } {
-  let hasKey = false;
-  const statusEl = dot("var(--md-error)", 6);
-  const state = h("span", { class: "hint" });
-  const field = h("input", {
-    type: "password", placeholder: "sk-ant-...", autocomplete: "off", spellcheck: "false",
-    style: "flex:1 1 auto;min-width:0",
-  }) as HTMLInputElement;
-  const saveBtn = h("button", { class: "primary", text: "Save key" });
-  const clearBtn = h("button", { class: "danger", text: "Remove" });
-  const feedback = h("div", {});
-
-  const model = dropdownControl<string>(
-    MODELS,
-    () => State.settings.model,
-    (v) => { State.settings.model = v; save(); },
-  );
-
-  async function refresh() {
-    hasKey = (await Bridge.secretPresent("anthropic-api-key")) ?? false;
-    sync();
-  }
-
-  function sync() {
-    statusEl.style.background = hasKey ? "var(--md-success)" : "var(--md-error)";
-    state.textContent = hasKey
-      ? "Key saved in the OS keychain."
-      : "No key yet — the chat needs one.";
-    field.placeholder = hasKey ? "••••••••••••  (stored)" : "sk-ant-...";
-    clearBtn.style.display = hasKey ? "" : "none";
-    model.sync();
-  }
-
-  saveBtn.addEventListener("click", async () => {
-    const value = field.value.trim();
-    if (!value) return;
-    clear(feedback);
-    try {
-      await Bridge.secretSet("anthropic-api-key", value);
-      field.value = "";
-      feedback.append(h("div", { class: "notice ok", text: "Saved. It never touches disk." }));
-      await refresh();
-    } catch (err) {
-      feedback.append(h("div", { class: "notice err", text: `Could not save: ${String(err)}` }));
-    }
-  });
-
-  clearBtn.addEventListener("click", async () => {
-    clear(feedback);
-    try {
-      await Bridge.secretClear("anthropic-api-key");
-      feedback.append(h("div", { class: "notice ok", text: "Key removed." }));
-      await refresh();
-    } catch (err) {
-      feedback.append(h("div", { class: "notice err", text: `Could not remove: ${String(err)}` }));
-    }
-  });
-
-  const body = h(
-    "div",
-    { class: "panel-body" },
-    state,
-    h("div", { class: "row" }, h("label", { text: "API key" }), field, saveBtn, clearBtn),
-    h("div", { class: "row" }, h("label", { text: "Model" }), model.el),
-    feedback,
-  );
-
-  return { body, status: statusEl, sync, refresh };
-}
-
 // ── Integrations ──────────────────────────────────────────────────────────────
 
 function integrationsPanel(present: Record<string, boolean>): { body: HTMLElement; sync: () => void; refresh: () => Promise<void> } {
@@ -599,13 +521,11 @@ export function buildSettingsView(): ViewHost {
 
   const general = generalPanel();
   const agents = agentsPanel();
-  const api = apiPanel();
   const integrations = integrationsPanel(present);
 
   const sections: AccordionSection[] = [
     { title: "General", body: general.body },
     { title: "Agents", body: agents.body, trailing: agents.status },
-    { title: "Claude", body: api.body, trailing: api.status },
     { title: "Integrations", body: integrations.body },
   ];
 
@@ -623,7 +543,6 @@ export function buildSettingsView(): ViewHost {
 
   async function load() {
     await agents.refresh();
-    await api.refresh();
     await integrations.refresh();
     integrations.sync();
   }
@@ -633,7 +552,6 @@ export function buildSettingsView(): ViewHost {
     sync() {
       general.sync();
       agents.sync();
-      api.sync();
       integrations.sync();
       if (!loaded) {
         loaded = true;

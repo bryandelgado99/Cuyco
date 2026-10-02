@@ -3,6 +3,20 @@
 A running list for this fork. Nothing here is a contract; it's the honest state
 of the app right after the initial rebrand. Tick items off as they land.
 
+## Agents
+
+Cuyco ships hooks for Claude Code, Command Code, Codex and OpenCode (Settings →
+Agents). Two things need confirming on a machine that has each CLI installed:
+
+- [ ] **Codex approvals.** Its `PermissionRequest` event is deliberately not
+      installed: the relay answers with Claude's output shape, and until Codex's
+      own is confirmed a request it cannot read would just hang a prompt. Codex
+      therefore asks in the terminal today. Confirm the shape, then add the event
+      and let the island's card answer it.
+- [ ] **OpenCode plugin directory.** The installer writes
+      `~/.config/opencode/plugins/cuyco.ts`, which is what the docs say. Confirm
+      that is where OpenCode looks on Windows.
+
 ## Visuals
 
 - [ ] **Review the cuy in motion.** The character was redrawn as a guinea pig
@@ -25,7 +39,7 @@ of the app right after the initial rebrand. Tick items off as they land.
 
 - [ ] **Apply the tokens to the views.** `src/style.css` carries the M3 shape
       scale, the emphasised motion curves and dark colour roles, but only a few
-      surfaces use them (island, cards, buttons). Rework pills, chat, switches,
+      surfaces use them (island, cards, buttons). Rework pills, switches,
       dropdowns and settings with the tokens.
 - [ ] **State layers** using `--md-state-hover` / `--md-state-press` on every
       interactive control.

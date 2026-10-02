@@ -1,6 +1,6 @@
 // Cuyco for Windows — app wiring and the commands the island calls.
 
-mod claude;
+mod base64;
 mod files;
 mod hooks;
 mod integrations;
@@ -20,7 +20,6 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
 use tauri_plugin_autostart::{ManagerExt, MacosLauncher};
 
-use claude::{Chat, ChatContext, ChatReply};
 use files::DroppedFile;
 use hooks::{HookPreview, HookStatus};
 use island::{PollGate, ScreenInfo};
@@ -277,24 +276,7 @@ fn approval_decline(app: AppHandle, request_id: String) {
     pipe::decline(&app, &request_id);
 }
 
-// ── Chat, files and secrets ───────────────────────────────────────────────────
-
-/// One chat turn. The API key and any file bytes stay on the Rust side.
-#[tauri::command]
-async fn chat_send(
-    shared: State<'_, Shared>,
-    chat: State<'_, Chat>,
-    query: String,
-    context: Option<ChatContext>,
-) -> Result<ChatReply, String> {
-    let model = shared.settings.lock().unwrap().model.clone();
-    claude::send(&chat, &model, query, context).await
-}
-
-#[tauri::command]
-fn chat_reset(chat: State<Chat>) {
-    chat.reset();
-}
+// ── Files and secrets ─────────────────────────────────────────────────────────
 
 /// Copies a dropped file into the inbox and reports its name back.
 #[tauri::command]
@@ -356,7 +338,6 @@ pub fn run() {
             gate: gate.clone(),
         })
         .manage(Pending::default())
-        .manage(Chat::default())
         .invoke_handler(tauri::generate_handler![
             boot,
             save_settings,
@@ -374,8 +355,6 @@ pub fn run() {
             approval_ack,
             approval_decline,
             log_line,
-            chat_send,
-            chat_reset,
             ingest_file,
             secret_present,
             secret_set,

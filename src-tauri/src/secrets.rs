@@ -7,7 +7,6 @@ const SERVICE: &str = "io.github.bryandelgado99.cuyco";
 
 /// Every key Cuyco may store. Anything outside this list is refused.
 pub const KNOWN_KEYS: &[&str] = &[
-    "anthropic-api-key",
     "n8n-url",
     "n8n-api-key",
     "vercel-token",

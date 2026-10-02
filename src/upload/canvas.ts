@@ -58,8 +58,8 @@ function text(
 }
 
 export interface UploadCanvasActions {
-  /** Primary button — hand the file to the chat. */
-  ask(): void;
+  /** Primary button — show the file where it landed, in the configured editor. */
+  reveal(): void;
   /** Secondary button. */
   cancel(): void;
 }
@@ -91,7 +91,7 @@ export class UploadCanvas {
     };
     this.overlay = document.createElement("div");
     this.overlay.id = "upload-overlay";
-    this.overlay.append(mk(114, 168, actions.ask), mk(290, 120, actions.cancel));
+    this.overlay.append(mk(114, 168, actions.reveal), mk(290, 120, actions.cancel));
 
     this.el = document.createElement("div");
     this.el.id = "upload-layer";
@@ -274,17 +274,17 @@ export class UploadCanvas {
 
     const name = State.droppedFile?.name ?? "file";
     text(ctx, `${name} is ready.`, 114, 80, `600 14px ${FONT}`, "#F5F6F8");
-    text(ctx, "What do you want to do with it?", 114, 100, `400 12.5px ${FONT}`, "#9398A1");
+    text(ctx, "It is in your Cuyco inbox.", 114, 100, `400 12.5px ${FONT}`, "#9398A1");
 
     ctx.fillStyle = "#F5F6F8";
     rr(ctx, 114, 113, 168, 26, 13);
     ctx.fill();
-    text(ctx, "Ask a question about it", 198, 126, `500 12.5px ${FONT}`, "#0B0C0E", "center");
+    text(ctx, "Open folder", 198, 126, `500 12.5px ${FONT}`, "#0B0C0E", "center");
 
     ctx.fillStyle = "rgba(255,255,255,0.09)";
     rr(ctx, 290, 113, 120, 26, 13);
     ctx.fill();
-    text(ctx, "Cancel", 350, 126, `500 12.5px ${FONT}`, "#F1F2F4", "center");
+    text(ctx, "Done", 350, 126, `500 12.5px ${FONT}`, "#F1F2F4", "center");
     ctx.restore();
   }
 

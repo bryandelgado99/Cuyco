@@ -19,7 +19,6 @@ export type IslandViewName =
   | "uploading"
   | "choose"
   | "mail"
-  | "prompt"
   | "searching"
   | "result"
   | "note"
@@ -66,10 +65,13 @@ export const ROUNDED_CORNER = 14; // hidden / compact
 export const EXPANDED_CORNER = 22;
 
 // Docked to a side edge the island is a vertical card: a small pill at rest and a
-// narrow column when it opens.
+// narrow column when it opens. The pill hugs the cuy — with the agents grid
+// stacked below only when there is one to show.
 export const SIDE_W = 320;
-export const SIDE_PILL_W = 56;
-export const SIDE_PILL_H = 160;
+export const SIDE_PILL_W = 44;
+export const SIDE_PILL_H = 100;
+/** Pill with nothing but the cuy in it — no agents grid below. */
+export const SIDE_PILL_H_MINI = 44;
 
 /** Heights for the narrow side column (the 640-wide VIEW_LAYOUTS do not fit). */
 const SIDE_VIEW_HEIGHTS: Record<IslandViewName, number> = {
@@ -84,7 +86,6 @@ const SIDE_VIEW_HEIGHTS: Record<IslandViewName, number> = {
   uploading: 176,
   choose: 176,
   mail: 200,
-  prompt: 300, // not used: the chat keeps chatPromptHeight
   searching: 160,
   result: 160,
   note: 180,
@@ -110,7 +111,6 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   uploading: { height: 176, botX: 46, botY: 103, botDiameter: 20, agentMode: "none" },
   choose: { height: 176, botX: 60, botY: 101, botDiameter: 52, agentMode: "column" },
   mail: { height: 240, botX: 56, botY: null, botDiameter: 46, agentMode: "column" },
-  prompt: { height: 160, botX: 52, botY: null, botDiameter: 44, agentMode: "column" },
   searching: { height: 160, botX: 52, botY: null, botDiameter: 44, agentMode: "column" },
   result: { height: 160, botX: 52, botY: null, botDiameter: 44, agentMode: "column" },
   note: { height: 160, botX: 60, botY: null, botDiameter: 50, agentMode: "column" },
@@ -122,16 +122,11 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
 // dropped the whole sequence — Cuyco included — is drawn by src/upload, which
 // owns its own constants (USC) straight from UploadSequenceEngine.swift.
 
-/** Chat view grows with the conversation — IslandContainer.chatPromptHeight. */
-export function chatPromptHeight(messageCount: number): number {
-  return Math.min(300, 240 + messageCount * 40);
-}
-
 export function islandSize(
   mode: IslandMode,
   view: IslandViewName,
-  chatCount = 0,
   anchor: Anchor = "top",
+  agents = true,
 ): { w: number; h: number } {
   // On a side edge the pill is vertical: the compact/hidden dimensions swap.
   const side = anchor !== "top";
@@ -141,14 +136,16 @@ export function islandSize(
       // edge instead of sitting there as a bar.
       return side ? { w: 0, h: SIDE_PILL_H } : { w: NOTCH_W, h: 0 };
     case "compact":
-      return side ? { w: SIDE_PILL_W, h: SIDE_PILL_H } : { w: COMPACT_W, h: NOTCH_H };
+      // Docked, the pill is only as tall as what it holds: the cuy, plus the
+      // agents grid when there is one below it.
+      return side
+        ? { w: SIDE_PILL_W, h: agents ? SIDE_PILL_H : SIDE_PILL_H_MINI }
+        : { w: COMPACT_W, h: NOTCH_H };
     case "expanded": {
       if (side) {
-        const h = view === "prompt" ? chatPromptHeight(chatCount) : SIDE_VIEW_HEIGHTS[view];
-        return { w: SIDE_W, h };
+        return { w: SIDE_W, h: SIDE_VIEW_HEIGHTS[view] };
       }
-      const h = view === "prompt" ? chatPromptHeight(chatCount) : VIEW_LAYOUTS[view].height;
-      return { w: EXPANDED_W, h };
+      return { w: EXPANDED_W, h: VIEW_LAYOUTS[view].height };
     }
   }
 }
@@ -167,21 +164,26 @@ export function botPosition(
   islandH: number,
   uploadProgress = 0,
   anchor: Anchor = "top",
+  agents = true,
 ): BotPlacement {
   const side = anchor !== "top";
   switch (mode) {
     case "hidden":
       return side
-        ? { cx: SIDE_PILL_W / 2, cy: 64, diameter: 6, opacity: 0 }
+        ? { cx: SIDE_PILL_W / 2, cy: SIDE_PILL_H / 2, diameter: 6, opacity: 0 }
         : { cx: 46, cy: 16, diameter: 6, opacity: 0 };
     case "compact":
+      // Docked, the cuy sits centred across the pill; the agents grid, when
+      // there is one, stacks underneath it.
       return side
-        ? { cx: SIDE_PILL_W / 2, cy: 64, diameter: 20, opacity: 1 }
+        ? { cx: SIDE_PILL_W / 2, cy: agents ? 30 : SIDE_PILL_H_MINI / 2, diameter: 20, opacity: 1 }
         : { cx: 40, cy: 16, diameter: 20, opacity: 1 };
     case "expanded": {
       const layout = VIEW_LAYOUTS[view];
-      // On the right the panel is mirrored, so the cuy hugs the outer (right) edge.
-      const mirror = (cx: number) => (anchor === "right" ? EXPANDED_W - cx : cx);
+      // On the right the panel is mirrored, so the cuy hugs the outer (right)
+      // edge — around the island's own width, not the 640-wide reference.
+      const panelW = side ? SIDE_W : EXPANDED_W;
+      const mirror = (cx: number) => (anchor === "right" ? panelW - cx : cx);
       if (view === "uploading") {
         return {
           cx: mirror(36 + uploadProgress * 526),

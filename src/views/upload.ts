@@ -1,8 +1,8 @@
-// Drop zone, upload progress and the "what do you want to do with it" card —
-// ports of UploadView / UploadingView / ChooseView from IslandViewContent.swift.
+// Drop zone, upload progress and the "what now" card — ports of UploadView /
+// UploadingView / ChooseView from IslandViewContent.swift.
 //
-// Sending a file by email is not in the Windows v1, so `choose` offers the one
-// action the spec asks for: ask a question about it.
+// The file lands in Cuyco's inbox, so the card offers the one thing worth doing
+// with it here: show the folder in the editor configured in Settings.
 
 import { h, clear } from "./dom";
 import { State } from "../core/state";
@@ -85,18 +85,18 @@ export function buildUploading(): ViewHost {
 
 export function buildChoose(actions: ViewActions): ViewHost {
   const title = h("div", { class: "title" });
-  const sub = h("div", { class: "sub", text: "What do you want to do with it?" });
+  const sub = h("div", { class: "sub", text: "It is in your Cuyco inbox." });
   const row = h(
     "div",
     { class: "actions" },
     h("button", {
       class: "btn primary",
-      text: "Ask a question",
-      onclick: () => actions.setView("prompt"),
+      text: "Open folder",
+      onclick: () => actions.openDroppedFolder(),
     }),
     h("button", {
       class: "btn secondary",
-      text: "Cancel",
+      text: "Done",
       onclick: () => actions.setView(State.defaultView()),
     }),
   );

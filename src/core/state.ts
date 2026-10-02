@@ -29,16 +29,6 @@ export interface ApprovalInfo {
   command: string;
 }
 
-export interface ChatMessage {
-  id: number;
-  role: "user" | "assistant";
-  content: string;
-}
-
-export type PromptContext =
-  | { kind: "window"; appName: string; title: string; url?: string }
-  | { kind: "file"; name: string; path?: string };
-
 export interface ResultItem {
   label: string;
   detail: string;
@@ -92,8 +82,6 @@ export interface Settings {
   autostart: boolean;
   /** Ids of the agents whose hooks are installed (see hooks::AGENTS). */
   hooksInstalled: string[];
-  /** Claude model used by the chat. */
-  model: string;
   /** "system" follows the OS; "light" / "dark" force one. */
   theme: Theme;
   /** Where the island docks. */
@@ -117,7 +105,6 @@ export const DEFAULT_SETTINGS: Settings = {
   screen: "primary",
   autostart: false,
   hooksInstalled: [],
-  model: "claude-opus-5",
   theme: "system",
   position: "top",
   hideAgents: false,
@@ -162,11 +149,9 @@ class AppState {
   uploadDuration = 2.4;
   fileDragOver = false;
 
-  promptContext: PromptContext | null = null;
   droppedFile: { name: string; path: string } | null = null;
   noteMessage: string | null = null;
   searchResult: SearchResult | null = null;
-  chatHistory: ChatMessage[] = [];
   pendingApproval: ApprovalInfo | null = null;
 
   integrations: Record<string, IntegrationInfo> = {};

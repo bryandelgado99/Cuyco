@@ -6,7 +6,7 @@
 
 **A tiny guinea pig that lives at the top of your screen and keeps an eye on your AI coding agent sessions.**
 
-Approve Claude Code permissions, watch your agents work, drop a file, chat with Claude, all without leaving what you're doing.
+Approve Claude Code permissions, watch your agents work, drop a file — all without leaving what you're doing.
 
 ![Windows 10/11](https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-AppImage%20%7C%20deb%20%7C%20rpm-FCC624?logo=linux&logoColor=black)
@@ -35,16 +35,16 @@ top edge of the screen instead, on Windows and Linux.
 
 The **cuy** is a plump guinea pig (“cuy” is the Ecuadorian word for it) with a small
 nose and whiskers. It peeks out when something is running, gets annoyed when you poke
-it, goes dizzy if you insist, and tells you the moment Claude Code needs you.
+it, goes dizzy if you insist, and tells you the moment an agent needs you.
 
 ## What you get
 
 | On the island | What it does |
 | --- | --- |
-| 🤖 **Claude Code, live** | Every session at the top of your screen: what it reads, edits and runs, step by step. |
+| 🤖 **Your agents, live** | Claude Code, Command Code, Codex and OpenCode: every session at the top of your screen, what it reads, edits and runs, step by step. |
 | ✅ **Approve from the island** | Permission requests show up with **Deny / Allow**, from any terminal: Windows Terminal, PowerShell, VS Code, Git Bash. One click, back to work. |
-| 💬 **Chat with Claude** | Ask about a file you dropped or a session you're watching. |
-| 📎 **Drop a file** | The cuy turns into a box, swallows the file, then answers questions about it. |
+| 🧑‍💻 **Open where you work** | A session's folder opens in VS Code, Zed, Android Studio, or any command you name. |
+| 📎 **Drop a file** | The cuy turns into a box, swallows the file into your inbox, and offers to open its folder. |
 | 🔌 **Integrations** | Stripe, n8n, GitHub, Vercel, Resend, Notion and Cal.com, each with its own coloured pill. |
 | 🎭 **A real character** | Idle breathing, blinks, eyes that follow the pointer, emotes and 28 sounds. |
 | 🫥 **Invisible when idle** | Hides when nothing is running, peeks out when you reach the top of the screen. |
@@ -93,9 +93,8 @@ src/                   island front end (TypeScript, no framework)
   cuyco/               the cuy and the launch greeting, in Canvas 2D
   island/              state machine, hooks, integrations
   views/               every island view
-  settings/            the settings window
-src-tauri/             Rust backend: window, named pipe, Claude API, pollers
-hook/                  cuyco-hook.exe, the Claude Code relay
+src-tauri/             Rust backend: window, named pipe, agent hooks, pollers
+hook/                  cuyco-hook.exe, the agent relay
 scripts/               icon and sound generators
 sounds/                the 28 WAVs
 ```
@@ -104,11 +103,13 @@ sounds/                the 28 WAVs
 
 ## Setup
 
-Open **Settings… → Claude Code → Install hooks…**. You get the exact diff of what
-will change in `%USERPROFILE%\.claude\settings.json`, the path of the dated backup
-that will be taken, and nothing is written until you click. Your own hooks are never
-touched, and uninstalling removes only Cuyco's entries. A Claude Code session is
-never blocked or slowed down by Cuyco.
+Open **Settings… → Agents**, then **Install hooks…** next to the agent you use. You
+get the exact diff of what will change in that agent's own config
+(`~/.claude/settings.json`, `~/.commandcode/settings.json`, `~/.codex/hooks.json`,
+or a plugin file for OpenCode), the path of the dated backup that will be taken, and
+nothing is written until you click. Your own hooks are never touched, and
+uninstalling removes only Cuyco's entries. A session is never blocked or slowed down
+by Cuyco.
 
 Keys live in the **Windows Credential Manager** (Windows) or the **Secret Service**
 (Linux), never on disk and never in the interface.

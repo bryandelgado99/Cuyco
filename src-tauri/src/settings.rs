@@ -20,10 +20,6 @@ pub struct Settings {
     /// accepts both so an existing settings.json still loads.
     #[serde(default, deserialize_with = "installed_agents")]
     pub hooks_installed: Vec<String>,
-    /// Claude model used by the chat. Changeable in the settings window.
-    /// Defaulted explicitly so a settings.json written by an older build still loads.
-    #[serde(default = "default_model")]
-    pub model: String,
     /// "system" (follow the OS), "light" or "dark". Defaulted so an older
     /// settings.json still loads.
     #[serde(default = "default_theme")]
@@ -40,10 +36,6 @@ pub struct Settings {
     /// Launcher used when `editor == "custom"`: an exe name on PATH or a full path.
     #[serde(default)]
     pub editor_command: String,
-}
-
-fn default_model() -> String {
-    crate::claude::DEFAULT_MODEL.to_string()
 }
 
 /// `hooksInstalled` used to be `true`/`false` for Claude Code alone. Read both
@@ -97,7 +89,6 @@ impl Default for Settings {
             screen: "primary".into(),
             autostart: false,
             hooks_installed: Vec::new(),
-            model: default_model(),
             theme: default_theme(),
             position: default_position(),
             hide_agents: default_hide_agents(),

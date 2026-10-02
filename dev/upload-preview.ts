@@ -11,8 +11,8 @@ const stage = document.getElementById("stage")!;
 const clock = document.getElementById("clock")!;
 
 const canvas = new UploadCanvas({
-  ask: () => (clock.textContent = "ASK clicked"),
-  cancel: () => (clock.textContent = "CANCEL clicked"),
+  reveal: () => (clock.textContent = "OPEN clicked"),
+  cancel: () => (clock.textContent = "DONE clicked"),
 });
 canvas.el.classList.add("on");
 canvas.el.style.position = "absolute";
