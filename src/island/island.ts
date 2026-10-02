@@ -73,6 +73,8 @@ export class Island {
   private collapsed = false;
   private collapseTimer: number | null = null;
   private wasInIsland = false;
+  /** Measured content height for the narrow side card; null = not measured. */
+  private contentH: number | null = null;
   /** Last shape handed to Rust for the click-through test. */
   private pushedRect = { x: -1, y: -1, w: -1, h: -1 };
   /** Where the island docks: "top" or a side edge. */
@@ -255,6 +257,12 @@ export class Island {
   }
 
   launch() {
+    // The launch greeting is drawn for the wide bar; the narrow side card has no
+    // room for it, so docked sideways we go straight to the pill.
+    if (this.anchor !== "top") {
+      this.fsm.forcePetit();
+      return;
+    }
     this.fsm.launch();
   }
 
@@ -456,7 +464,28 @@ export class Island {
   private targetSize(): { w: number; h: number; r: number } {
     const { w, h } = islandSize(State.mode, State.view, State.chatHistory.length, this.anchor);
     const r = State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
-    return { w, h, r };
+    // Docked sideways the card is exactly as tall as its content.
+    const height =
+      this.anchor !== "top" && State.mode === "expanded" && this.contentH != null
+        ? clamp(this.contentH, 130, PANEL_H)
+        : h;
+    return { w, h: height, r };
+  }
+
+  /** Height the active view needs, measured by letting it size to its content. */
+  private measureContentHeight(): number | null {
+    const view = this.views.get(State.view);
+    if (!view) return null;
+    const el = view.el;
+    const prevPosition = el.style.position;
+    const prevHeight = el.style.height;
+    el.style.position = "static";
+    el.style.height = "auto";
+    const measured = el.getBoundingClientRect().height;
+    el.style.position = prevPosition;
+    el.style.height = prevHeight;
+    // 8 px top + 34 px header + 10 px bottom of #content.
+    return measured > 0 ? measured + 52 : null;
   }
 
   private animateGeometry(shrinking: boolean) {
@@ -529,6 +558,7 @@ export class Island {
   setAnchor(anchor: Anchor) {
     if (anchor === this.anchor) return;
     this.anchor = anchor;
+    this.contentH = null;
     if (anchor === "top") delete document.documentElement.dataset.anchor;
     else document.documentElement.dataset.anchor = anchor;
     this.animateGeometry(false);
@@ -922,6 +952,17 @@ export class Island {
 
     syncMiniBotStates(State.tasks);
     this.engine.setState(State.effectiveState);
+
+    // Docked sideways, size the card to its content (the chat keeps its own height).
+    if (this.anchor !== "top" && State.mode === "expanded" && State.view !== "prompt") {
+      const next = this.measureContentHeight();
+      if (next != null && (this.contentH == null || Math.abs(next - this.contentH) > 1)) {
+        this.contentH = next;
+        this.animateGeometry(false);
+      }
+    } else {
+      this.contentH = null;
+    }
   }
 
   /** Applies settings coming from Rust at boot. */
