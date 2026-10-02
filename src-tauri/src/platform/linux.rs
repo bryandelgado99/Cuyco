@@ -168,6 +168,8 @@ mod layer {
     use std::os::raw::{c_char, c_int};
 
     pub const LAYER_OVERLAY: c_int = 3;
+    pub const EDGE_LEFT: c_int = 0;
+    pub const EDGE_RIGHT: c_int = 1;
     pub const EDGE_TOP: c_int = 2;
     pub const KEYBOARD_NONE: c_int = 0;
     pub const KEYBOARD_ON_DEMAND: c_int = 2;
@@ -261,6 +263,24 @@ pub fn make_non_activating(win: &WebviewWindow) {
     });
     LAYER_SURFACE.store(true, Ordering::Relaxed);
     crate::log::line("island is a layer-shell overlay");
+}
+
+/// Re-anchors the layer surface to the requested edge. A side anchor leaves the
+/// vertical axis unanchored, so the compositor centres the surface there — the
+/// same place `apply_geometry` puts the window on other platforms. A no-op
+/// unless the window is already a layer surface.
+pub fn apply_anchor(win: &WebviewWindow, position: &str) {
+    if !LAYER_SURFACE.load(Ordering::Relaxed) {
+        return;
+    }
+    let Ok(gw) = win.gtk_window() else { return };
+    let ptr = gtk_window_ptr(&gw);
+    let on = |edge: bool| if edge { 1 } else { 0 };
+    unsafe {
+        layer::gtk_layer_set_anchor(ptr, layer::EDGE_TOP, on(position == "top"));
+        layer::gtk_layer_set_anchor(ptr, layer::EDGE_LEFT, on(position == "left"));
+        layer::gtk_layer_set_anchor(ptr, layer::EDGE_RIGHT, on(position == "right"));
+    }
 }
 
 /// Temporarily allow keyboard focus so a text field inside the island can be

@@ -4,6 +4,9 @@
 
 export type IslandMode = "hidden" | "compact" | "expanded";
 
+/** Where the island is pegged on screen. */
+export type Anchor = "top" | "left" | "right";
+
 export type IslandViewName =
   | "overview"
   | "empty"
@@ -101,14 +104,17 @@ export function islandSize(
   mode: IslandMode,
   view: IslandViewName,
   chatCount = 0,
+  anchor: Anchor = "top",
 ): { w: number; h: number } {
+  // On a side edge the pill is vertical: the compact/hidden dimensions swap.
+  const side = anchor !== "top";
   switch (mode) {
     case "hidden":
-      // No notch to hide inside on a PC: the island retracts to zero height and
-      // slides into the top edge of the screen instead of sitting there as a bar.
-      return { w: NOTCH_W, h: 0 };
+      // No notch to hide inside on a PC: the island retracts into the screen
+      // edge instead of sitting there as a bar.
+      return side ? { w: 0, h: NOTCH_W } : { w: NOTCH_W, h: 0 };
     case "compact":
-      return { w: COMPACT_W, h: NOTCH_H };
+      return side ? { w: NOTCH_H, h: COMPACT_W } : { w: COMPACT_W, h: NOTCH_H };
     case "expanded": {
       const h = view === "prompt" ? chatPromptHeight(chatCount) : VIEW_LAYOUTS[view].height;
       return { w: EXPANDED_W, h };
@@ -129,12 +135,18 @@ export function botPosition(
   view: IslandViewName,
   islandH: number,
   uploadProgress = 0,
+  anchor: Anchor = "top",
 ): BotPlacement {
+  const side = anchor !== "top";
   switch (mode) {
     case "hidden":
-      return { cx: 46, cy: 16, diameter: 6, opacity: 0 };
+      return side
+        ? { cx: NOTCH_H / 2, cy: 46, diameter: 6, opacity: 0 }
+        : { cx: 46, cy: 16, diameter: 6, opacity: 0 };
     case "compact":
-      return { cx: 40, cy: 16, diameter: 20, opacity: 1 };
+      return side
+        ? { cx: NOTCH_H / 2, cy: 40, diameter: 20, opacity: 1 }
+        : { cx: 40, cy: 16, diameter: 20, opacity: 1 };
     case "expanded": {
       const layout = VIEW_LAYOUTS[view];
       if (view === "uploading") {

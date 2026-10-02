@@ -148,8 +148,9 @@ pub fn screen_info(app: &AppHandle, pref: &str) -> ScreenInfo {
     }
 }
 
-/// Places and sizes the window. `collapsed` picks the wake strip instead of the panel.
-pub fn apply_geometry(app: &AppHandle, pref: &str, collapsed: bool) {
+/// Places and sizes the window. `position` picks the edge (top / left / right)
+/// and `collapsed` the wake strip instead of the panel.
+pub fn apply_geometry(app: &AppHandle, pref: &str, position: &str, collapsed: bool) {
     let Some(win) = window(app) else { return };
     let Some(m) = target_monitor(app, pref) else { return };
 
@@ -157,11 +158,23 @@ pub fn apply_geometry(app: &AppHandle, pref: &str, collapsed: bool) {
     let mp = *m.position();
     let ms = *m.size();
 
-    let (lw, lh) = if collapsed { (STRIP_W, STRIP_H) } else { (PANEL_W, PANEL_H) };
+    // On a side edge the wake strip is vertical.
+    let side = position == "left" || position == "right";
+    let (lw, lh) = if collapsed {
+        if side { (STRIP_H, STRIP_W) } else { (STRIP_W, STRIP_H) }
+    } else {
+        (PANEL_W, PANEL_H)
+    };
     let pw = (lw * scale).round().max(1.0) as u32;
     let ph = (lh * scale).round().max(1.0) as u32;
-    let x = mp.x + (ms.width as i32 - pw as i32) / 2;
-    let y = mp.y;
+    let (x, y) = match position {
+        "left" => (mp.x, mp.y + (ms.height as i32 - ph as i32) / 2),
+        "right" => (
+            mp.x + ms.width as i32 - pw as i32,
+            mp.y + (ms.height as i32 - ph as i32) / 2,
+        ),
+        _ => (mp.x + (ms.width as i32 - pw as i32) / 2, mp.y),
+    };
 
     // GTK never sizes a non-resizable window below its natural size (200 px
     // here), so on Linux the 6 px wake strip would stay a 200 px block. tao

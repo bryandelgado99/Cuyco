@@ -38,6 +38,24 @@ body {
   background: transparent;
 }
 
+/* On a side edge the wake strip runs vertically along it, centred. */
+[data-anchor="left"] #wake-strip {
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 240px;
+}
+
+[data-anchor="right"] #wake-strip {
+  top: 50%;
+  left: auto;
+  right: 0;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 240px;
+}
+
 /* ── Island ─────────────────────────────────────────────────────────────── */
 
 #island {

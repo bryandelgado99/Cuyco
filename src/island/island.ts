@@ -7,7 +7,7 @@ import {
   EXPANDED_CORNER, EXPANDED_W, NOTCH_W, PANEL_H, PANEL_W,
   ROUNDED_CORNER, VIEW_LAYOUTS, botGlowColor, botGlowOpacity, botPosition, chatPromptHeight,
   islandSize,
-  type IslandMode, type IslandViewName,
+  type Anchor, type IslandMode, type IslandViewName,
 } from "../core/layout";
 import { Sound } from "../core/sound";
 import { State } from "../core/state";
@@ -72,6 +72,8 @@ export class Island {
   private wasInIsland = false;
   /** Last shape handed to Rust for the click-through test. */
   private pushedRect = { x: -1, y: -1, w: -1, h: -1 };
+  /** Where the island docks: "top" or a side edge. */
+  private anchor: Anchor = "top";
   private homeCollapseAt: number | null = null;
 
   // Bot hover → love (IslandWindowController.botHoverIn)
@@ -450,7 +452,7 @@ export class Island {
   // ── Geometry ────────────────────────────────────────────────────────────────
 
   private targetSize(): { w: number; h: number; r: number } {
-    const { w, h } = islandSize(State.mode, State.view, State.chatHistory.length);
+    const { w, h } = islandSize(State.mode, State.view, State.chatHistory.length, this.anchor);
     const r = State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
     return { w, h, r };
   }
@@ -475,18 +477,38 @@ export class Island {
     const r = this.radius.value;
     this.islandEl.style.width = `${w}px`;
     this.islandEl.style.height = `${hh}px`;
-    this.islandEl.style.borderRadius = `0 0 ${r}px ${r}px`;
-    this.islandEl.style.transform = `translateX(-50%)`;
+
+    if (this.anchor === "top") {
+      this.islandEl.style.left = "50%";
+      this.islandEl.style.right = "auto";
+      this.islandEl.style.top = "0px";
+      this.islandEl.style.transform = "translateX(-50%)";
+      this.islandEl.style.borderRadius = `0 0 ${r}px ${r}px`;
+      this.miniGrid.style.left = `${w - 40 - 14.5}px`;
+      this.miniGrid.style.top = `${hh / 2 - 14.5}px`;
+    } else {
+      this.islandEl.style.left = this.anchor === "left" ? "0px" : "auto";
+      this.islandEl.style.right = this.anchor === "right" ? "0px" : "auto";
+      this.islandEl.style.top = "50%";
+      this.islandEl.style.transform = "translateY(-50%)";
+      this.islandEl.style.borderRadius = this.anchor === "left"
+        ? `0 ${r}px ${r}px 0`
+        : `${r}px 0 0 ${r}px`;
+      this.miniGrid.style.left = `${w / 2 - 14.5}px`;
+      this.miniGrid.style.top = `${hh - 40 - 14.5}px`;
+    }
+
     // These follow the island as it resizes, so they belong here rather than in
     // the state-driven DOM sync.
-    this.miniGrid.style.left = `${w - 40 - 14.5}px`;
-    this.miniGrid.style.top = `${hh / 2 - 14.5}px`;
     this.greetingCanvas.style.left = `${(w - EXPANDED_W) / 2}px`;
     this.uploadCanvas.el.style.left = `${(w - EXPANDED_W) / 2}px`;
 
-    const rect = { x: (PANEL_W - w) / 2, y: 0, w, h: hh };
+    const rect = this.islandRect();
     const p = this.pushedRect;
-    if (Math.abs(p.x - rect.x) > 0.5 || Math.abs(p.w - rect.w) > 0.5 || Math.abs(p.h - rect.h) > 0.5) {
+    if (
+      Math.abs(p.x - rect.x) > 0.5 || Math.abs(p.y - rect.y) > 0.5 ||
+      Math.abs(p.w - rect.w) > 0.5 || Math.abs(p.h - rect.h) > 0.5
+    ) {
       this.pushedRect = rect;
       void Bridge.setIslandRect(rect.x, rect.y, rect.w, rect.h);
     }
@@ -496,7 +518,18 @@ export class Island {
   private islandRect(): { x: number; y: number; w: number; h: number } {
     const w = this.width.value;
     const hh = this.height.value;
-    return { x: (PANEL_W - w) / 2, y: 0, w, h: hh };
+    if (this.anchor === "top") return { x: (PANEL_W - w) / 2, y: 0, w, h: hh };
+    const x = this.anchor === "left" ? 0 : PANEL_W - w;
+    return { x, y: (PANEL_H - hh) / 2, w, h: hh };
+  }
+
+  /** Docks the island to a new edge (Top / Left / Right). */
+  setAnchor(anchor: Anchor) {
+    if (anchor === this.anchor) return;
+    this.anchor = anchor;
+    if (anchor === "top") delete document.documentElement.dataset.anchor;
+    else document.documentElement.dataset.anchor = anchor;
+    this.animateGeometry(false);
   }
 
   // ── Window collapse (hidden → tiny wake strip, zero polling) ────────────────
@@ -744,7 +777,7 @@ export class Island {
   };
 
   private updateBotTargets() {
-    const p = botPosition(State.mode, State.view, this.height.value, State.uploadProgress);
+    const p = botPosition(State.mode, State.view, this.height.value, State.uploadProgress, this.anchor);
     this.botCx.target = p.cx;
     this.botCy.target = p.cy;
     this.botSize.target = p.diameter / 0.6;
@@ -815,7 +848,8 @@ export class Island {
   }
 
   private lookY(): number {
-    return -Math.tanh((State.mouse.y - this.botCy.value) / 200);
+    const rect = this.islandRect();
+    return -Math.tanh((State.mouse.y - (rect.y + this.botCy.value)) / 200);
   }
 
   private updateCountdown(nowMs: number) {
@@ -885,6 +919,7 @@ export class Island {
     Sound.setEnabled(State.settings.soundEnabled);
     Sound.setVolume(State.settings.soundVolume);
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
+    this.setAnchor(State.settings.position);
     State.notify();
   }
 

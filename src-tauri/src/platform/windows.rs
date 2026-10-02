@@ -206,6 +206,10 @@ unsafe extern "system" fn revoke_render_widget(hwnd: HWND, _: LPARAM) -> BOOL {
     true.into()
 }
 
+/// The window manager places the window from `apply_geometry`, so anchoring the
+/// window itself is a no-op on Windows.
+pub fn apply_anchor(_win: &WebviewWindow, _position: &str) {}
+
 /// WS_EX_NOACTIVATE keeps clicks from stealing focus; WS_EX_TOOLWINDOW keeps the
 /// island out of Alt-Tab.
 pub fn make_non_activating(win: &WebviewWindow) {
