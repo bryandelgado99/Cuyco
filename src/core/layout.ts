@@ -65,6 +65,12 @@ export const EXPANDED_W = 640;
 export const ROUNDED_CORNER = 14; // hidden / compact
 export const EXPANDED_CORNER = 22;
 
+// Docked to a side edge the island is a vertical card: a small pill at rest and a
+// narrow column when it opens.
+export const SIDE_W = 320;
+export const SIDE_PILL_W = 56;
+export const SIDE_PILL_H = 160;
+
 /** Invisible hover strip that wakes the island when hidden. */
 export const WAKE_STRIP_W = 240;
 export const WAKE_STRIP_H = 6;
@@ -112,9 +118,9 @@ export function islandSize(
     case "hidden":
       // No notch to hide inside on a PC: the island retracts into the screen
       // edge instead of sitting there as a bar.
-      return side ? { w: 0, h: NOTCH_W } : { w: NOTCH_W, h: 0 };
+      return side ? { w: 0, h: SIDE_PILL_H } : { w: NOTCH_W, h: 0 };
     case "compact":
-      return side ? { w: NOTCH_H, h: COMPACT_W } : { w: COMPACT_W, h: NOTCH_H };
+      return side ? { w: SIDE_PILL_W, h: SIDE_PILL_H } : { w: COMPACT_W, h: NOTCH_H };
     case "expanded": {
       const h = view === "prompt" ? chatPromptHeight(chatCount) : VIEW_LAYOUTS[view].height;
       return { w: EXPANDED_W, h };
@@ -141,11 +147,11 @@ export function botPosition(
   switch (mode) {
     case "hidden":
       return side
-        ? { cx: NOTCH_H / 2, cy: 46, diameter: 6, opacity: 0 }
+        ? { cx: SIDE_PILL_W / 2, cy: 64, diameter: 6, opacity: 0 }
         : { cx: 46, cy: 16, diameter: 6, opacity: 0 };
     case "compact":
       return side
-        ? { cx: NOTCH_H / 2, cy: 40, diameter: 20, opacity: 1 }
+        ? { cx: SIDE_PILL_W / 2, cy: 64, diameter: 20, opacity: 1 }
         : { cx: 40, cy: 16, diameter: 20, opacity: 1 };
     case "expanded": {
       const layout = VIEW_LAYOUTS[view];
