@@ -100,7 +100,9 @@ export interface Settings {
   /** Hide the agents panel (pills, mini-grid, overview, tabs). */
   hideAgents: boolean;
   /** Editor "Open terminal" launches. */
-  editor: "vscode" | "zed" | "android-studio" | "system";
+  editor: "vscode" | "zed" | "android-studio" | "system" | "custom";
+  /** Launcher used when `editor === "custom"`. */
+  editorCustom: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -119,6 +121,7 @@ export const DEFAULT_SETTINGS: Settings = {
   position: "top",
   hideAgents: false,
   editor: "vscode",
+  editorCustom: "",
 };
 
 /** Editors "Open terminal" can launch (see the Rust `open_in_editor` command). */
@@ -127,6 +130,7 @@ export const EDITORS: { id: Settings["editor"]; label: string }[] = [
   { id: "zed", label: "Zed" },
   { id: "android-studio", label: "Android Studio" },
   { id: "system", label: "System" },
+  { id: "custom", label: "Custom" },
 ];
 
 export function editorLabel(): string {

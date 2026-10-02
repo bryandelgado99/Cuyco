@@ -143,6 +143,16 @@ function generalPanel(): Control & { body: HTMLElement } {
     () => State.settings.editor,
     (v) => { State.settings.editor = v; save(); },
   );
+  const editorCmd = h("input", {
+    type: "text",
+    placeholder: "cursor, idea, C:\\…\\studio64.exe",
+    style: "flex:1 1 auto;min-width:0",
+    // Saved on blur/Enter, not on every keystroke, to keep the caret steady.
+    onchange: (e: Event) => {
+      State.settings.editorCustom = (e.target as HTMLInputElement).value.trim();
+      save();
+    },
+  }) as HTMLInputElement;
   const cuyOnly = switchControl(
     () => State.settings.hideAgents,
     (v) => { State.settings.hideAgents = v; save(); },
@@ -161,6 +171,7 @@ function generalPanel(): Control & { body: HTMLElement } {
     row("Appearance", theme.el),
     row("Position", position.el),
     row("Editor", editor.el),
+    row("Command", editorCmd),
     row("Cuy only", cuyOnly.el),
     row("Launch at startup", autostart.el),
   );
@@ -171,6 +182,7 @@ function generalPanel(): Control & { body: HTMLElement } {
     sync: () => {
       sound.sync(); auto.sync(); screen.sync(); theme.sync(); position.sync();
       editor.sync();
+      if (editorCmd.value !== State.settings.editorCustom) editorCmd.value = State.settings.editorCustom;
       cuyOnly.sync(); autostart.sync();
       volume.value = String(State.settings.soundVolume);
       volume.style.opacity = State.settings.soundEnabled ? "1" : "0.4";

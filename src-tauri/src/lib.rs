@@ -152,7 +152,10 @@ fn open_in_editor(shared: State<Shared>, path: Option<String>) -> bool {
     // whoever is using Claude Code, and a shell would happily read `&`, `^`, `%`
     // or `$` in a folder name as syntax. Finding the launcher ourselves and
     // handing the path over as a separate argument keeps it a path.
-    let editor = shared.settings.lock().unwrap().editor.clone();
+    let (editor, custom) = {
+        let s = shared.settings.lock().unwrap();
+        (s.editor.clone(), s.editor_command.trim().to_string())
+    };
     let path = path.filter(|p| !p.is_empty());
     // It arrives in a hook payload: only an existing folder, given by its full
     // path, goes any further. The launcher would read `--something` as an option,
@@ -166,9 +169,19 @@ fn open_in_editor(shared: State<Shared>, path: Option<String>) -> bool {
     let stems: &[&str] = match editor.as_str() {
         "zed" => &["zed"],
         "android-studio" => &["studio", "studio64"],
-        "system" => &[],
+        "system" | "custom" => &[],
         _ => &["code"],
     };
+    // A custom launcher (an exe name on PATH or a full path) wins when set.
+    if editor == "custom" && !custom.is_empty() {
+        let mut cmd = Command::new(&custom);
+        if let Some(p) = path.as_deref() {
+            cmd.arg(p);
+        }
+        if platform::no_console(&mut cmd).spawn().is_ok() {
+            return true;
+        }
+    }
     for stem in stems {
         if let Some(bin) = platform::find_on_path(stem) {
             let mut cmd = Command::new(bin);
