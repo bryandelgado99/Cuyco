@@ -41,6 +41,7 @@ const EAR_Y = 16;
 const EAR_HB = 17;
 const CARD = { x: 10, y: 36, w: 620, h: 104 };
 const CARD_R = 20;
+const GROUND_Y = CARD.y + CARD.h - 6;
 const SMALL_W = COMPACT_W;
 const SMALL_H = NOTCH_H;
 
@@ -81,13 +82,22 @@ function greetPose(t: number): Pose {
   const iw = lerp(NOTCH_W, 640, g);
   const ih = lerp(NOTCH_H, 150, g);
 
-  const gg = E.back(seg(t, 0.02, T.grow));
-  const hb = lerp(3, HB, gg);
+  const k = seg(t, 0.02, T.grow);
+  const gg = E.back(k);
+  const hb = lerp(6, HB, gg);
   let x = C0.x;
-  let y = lerp(16, C0.y, E.out(seg(t, 0.02, T.grow)));
+  // The cuy hops in from below the card, arcs over the grass and lands.
+  let y = lerp(GROUND_Y + 40, C0.y, E.out(k)) - HB * 0.35 * Math.sin(Math.PI * k);
   let sx = 1;
   let sy = 1;
-  let tilt = 0;
+  let tilt = Math.sin(Math.PI * k) * 0.12;
+  // Landing squash, right after the hop.
+  const land = seg(t, T.grow, T.grow + 0.14);
+  if (land > 0 && land < 1) {
+    const bump = Math.sin(Math.PI * land);
+    sy = 1 - 0.22 * bump;
+    sx = 1 + 0.16 * bump;
+  }
 
   if (t >= T.dip0 && t < T.pop1) {
     const k = Math.sin(Math.PI * seg(t, T.dip0, T.pop1));
@@ -203,38 +213,6 @@ function pose(t: number, tc: number): Pose {
   return p;
 }
 
-// ── Particles (seeded LCG, seed = 7, identical sequence to the Swift version) ──
-
-interface RingDot { a: number; j: number; s: number; al: number }
-interface Ring { t0: number; dots: RingDot[] }
-interface Streak { a: number; sp: number; len: number; t0: number; col: string }
-
-const PARTICLES = (() => {
-  let seed = 7;
-  const rnd = () => {
-    seed = (Math.imul(seed, 1103515245) + 12345) & 0x7fffffff;
-    return seed / 0x7fffffff;
-  };
-  const rings: Ring[] = [0.1, 0.2, 0.3, 0.45, 0.6].map((t0) => ({
-    t0,
-    dots: Array.from({ length: 170 }, () => ({
-      a: rnd() * Math.PI * 2,
-      j: (rnd() - 0.5) * 0.22,
-      s: 0.7 + rnd() * 0.9,
-      al: 0.45 + rnd() * 0.55,
-    })),
-  }));
-  const cols = ["#3B9EFF", "#F29B38", "#FF5A4E", "#2EC4A0", "#A78BFA"];
-  const streaks: Streak[] = Array.from({ length: 16 }, (_, i) => ({
-    a: (i / 16) * Math.PI * 2 + (rnd() - 0.5) * 0.3,
-    sp: 230 + rnd() * 260,
-    len: 6 + rnd() * 9,
-    t0: 0.08 + rnd() * 0.14,
-    col: cols[i % 5],
-  }));
-  return { rings, streaks };
-})();
-
 // ── Drawing ───────────────────────────────────────────────────────────────────
 
 function rr(x: CanvasRenderingContext2D, X: number, Y: number, W: number, H: number, R: number) {
@@ -338,23 +316,6 @@ function drawCuyco(x: CanvasRenderingContext2D, p: Pose) {
   const hh = p.hb / 2;
   const hw = hh * ASP;
   if (hh <= 0.4) return;
-
-  // Halo: golden → blue, two passes for a soft aura
-  if (p.halo > 0) {
-    const bl = p.haloBlue;
-    const cr = Math.round(lerp(232, 59, bl));
-    const cg = Math.round(lerp(195, 158, bl));
-    const cb = Math.round(lerp(154, 255, bl));
-    for (const [R, alpha] of [[hw * 2.6, 0.18], [hw * 4.2, 0.07]] as const) {
-      const g = x.createRadialGradient(p.x, p.y, 0, p.x, p.y, R);
-      g.addColorStop(0, `rgba(${cr},${cg},${cb},${alpha * p.halo})`);
-      g.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
-      x.fillStyle = g;
-      x.beginPath();
-      x.arc(p.x, p.y, R, 0, Math.PI * 2);
-      x.fill();
-    }
-  }
 
   x.save();
   x.translate(p.x, p.y);
@@ -503,33 +464,34 @@ function drawCuyco(x: CanvasRenderingContext2D, p: Pose) {
   x.restore();
 }
 
-function drawParticles(x: CanvasRenderingContext2D, t: number, p: Pose) {
-  if (!(p.card > 0 || p.fx < 1)) return;
-  for (const ring of PARTICLES.rings) {
-    const k = seg(t, ring.t0, ring.t0 + 1.35);
-    if (k <= 0 || k >= 1) continue;
-    const rx = lerp(14, 380, E.out(k));
-    const ry = rx * 0.34;
-    const fade = (1 - k) * (k < 0.08 ? k / 0.08 : 1) * p.fx * p.card;
-    for (const dot of ring.dots) {
-      const r = 1 + dot.j;
-      x.fillStyle = `rgba(255,255,255,${dot.al * fade})`;
-      x.fillRect(C0.x + Math.cos(dot.a) * rx * r, C0.y + Math.sin(dot.a) * ry * r, dot.s, dot.s);
-    }
-  }
-  for (const s of PARTICLES.streaks) {
-    const k = seg(t, s.t0, s.t0 + 0.6);
-    if (k <= 0 || k >= 1) continue;
-    const dist = s.sp * E.out(k) * 0.9 + 10;
-    const alpha = (1 - k) * p.fx;
-    x.strokeStyle = s.col + Math.round(alpha * 255).toString(16).padStart(2, "0");
-    x.lineWidth = 1.6;
-    x.lineCap = "round";
+/** The grassy ground the cuy lands on: a band plus a row of swaying blades. */
+function drawGrass(x: CanvasRenderingContext2D, alpha: number, t: number) {
+  if (alpha <= 0.01) return;
+  const y = GROUND_Y;
+  const left = CARD.x + 10;
+  const right = CARD.x + CARD.w - 10;
+  x.save();
+  x.globalAlpha = alpha;
+  const g = x.createLinearGradient(0, y - 4, 0, y + 14);
+  g.addColorStop(0, "#6FBF63");
+  g.addColorStop(1, "#2F6B3A");
+  x.fillStyle = g;
+  rr(x, left, y - 4, right - left, 18, 6);
+  x.fill();
+  x.strokeStyle = "#3E8B4A";
+  x.lineWidth = 1.6;
+  x.lineCap = "round";
+  const n = Math.floor((right - left) / 11);
+  for (let i = 0; i < n; i++) {
+    const bx = left + 8 + i * 11;
+    const sway = Math.sin(t * 2.2 + i * 0.7) * 1.6;
+    const bh = 7 + ((i * 37) % 7);
     x.beginPath();
-    x.moveTo(C0.x + Math.cos(s.a) * (dist - s.len), C0.y + Math.sin(s.a) * (dist - s.len) * 0.42);
-    x.lineTo(C0.x + Math.cos(s.a) * dist, C0.y + Math.sin(s.a) * dist * 0.42);
+    x.moveTo(bx, y + 1);
+    x.quadraticCurveTo(bx + sway, y - bh * 0.6, bx + sway * 1.7, y - bh);
     x.stroke();
   }
+  x.restore();
 }
 
 const MINI_COLORS = ["#E86A6A", "#3E86E0", "#EFAE5A", "#8C73F2"];
@@ -626,10 +588,10 @@ export class Greeting {
       x.save();
       rr(x, CARD.x, CARD.y, CARD.w, CARD.h, CARD_R);
       x.clip();
-      drawParticles(x, t, p);
+      drawGrass(x, p.card, t);
       x.restore();
     } else if (Number.isFinite(this.tc) && t >= this.tc) {
-      drawParticles(x, t, p);
+      drawGrass(x, p.fx, t);
     }
 
     drawMinis(x, p.minis);
