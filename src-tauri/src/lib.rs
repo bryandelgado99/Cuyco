@@ -47,8 +47,8 @@ pub struct BootInfo {
 #[tauri::command]
 fn boot(app: AppHandle, shared: State<Shared>) -> BootInfo {
     let mut settings = shared.settings.lock().unwrap().clone();
-    // The real state of ~/.claude/settings.json wins over whatever we stored.
-    settings.hooks_installed = hooks::status().installed;
+    // The real state of each agent's config wins over whatever we stored.
+    settings.hooks_installed = hooks::installed_agents();
     let screen = island::screen_info(&app, &settings.screen);
     BootInfo {
         settings,
@@ -211,17 +211,23 @@ fn set_paused(paused: bool) {
     integrations::set_paused(paused);
 }
 
-// ── Claude Code hooks ─────────────────────────────────────────────────────────
+// ── Agent hooks ───────────────────────────────────────────────────────────────
+
+/// Resolves the agent id the front end sends, so a typo fails loudly instead of
+/// quietly doing nothing.
+fn agent_of(id: &str) -> Result<&'static hooks::Agent, String> {
+    hooks::agent(id).ok_or_else(|| format!("Unknown agent: {id}"))
+}
 
 #[tauri::command]
-fn hooks_status() -> HookStatus {
-    hooks::status()
+fn hooks_status() -> Vec<HookStatus> {
+    hooks::statuses()
 }
 
 /// Returns the diff the user has to look at before anything is written.
 #[tauri::command]
-fn hooks_preview(install: bool) -> Result<HookPreview, String> {
-    hooks::preview(install)
+fn hooks_preview(agent: String, install: bool) -> Result<HookPreview, String> {
+    hooks::preview(agent_of(&agent)?, install)
 }
 
 /// Only ever called from an explicit click in the settings window.
@@ -229,15 +235,21 @@ fn hooks_preview(install: bool) -> Result<HookPreview, String> {
 fn hooks_apply(
     app: AppHandle,
     shared: State<Shared>,
+    agent: String,
     install: bool,
     fingerprint: String,
 ) -> Result<String, String> {
+    let agent = agent_of(&agent)?;
     // The fingerprint comes from the preview the user actually looked at, so a
     // settings.json that changed in between is refused rather than overwritten.
-    let backup = hooks::write(install, &fingerprint)?;
+    let backup = hooks::write(agent, install, &fingerprint)?;
     let updated = {
         let mut current = shared.settings.lock().unwrap();
-        current.hooks_installed = install;
+        let id = agent.id.to_string();
+        current.hooks_installed.retain(|a| a != &id);
+        if install {
+            current.hooks_installed.push(id);
+        }
         let _ = settings::save(&current);
         current.clone()
     };

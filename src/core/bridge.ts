@@ -60,16 +60,18 @@ export const Bridge = {
   /** Writes to %LOCALAPPDATA%\Cuyco\cuyco.log, next to the Rust lines. */
   log: (message: string) => call<void>("log_line", { message }),
 
-  // ── Claude Code hooks ─────────────────────────────────────────────────────
-  hooksStatus: () => call<HookStatus>("hooks_status"),
+  // ── Agent hooks ───────────────────────────────────────────────────────────
+  /** One entry per agent in hooks::AGENTS. */
+  hooksStatus: () => call<HookStatus[]>("hooks_status"),
   /** Diff to show before anything is written. `install: false` previews removal. */
-  hooksPreview: (install: boolean) => callOrThrow<HookPreview>("hooks_preview", { install }),
+  hooksPreview: (agent: string, install: boolean) =>
+    callOrThrow<HookPreview>("hooks_preview", { agent, install }),
   /**
-   * Writes ~/.claude/settings.json — only ever after an explicit click, and only
+   * Writes that agent's config — only ever after an explicit click, and only
    * when the file still matches the preview the user looked at.
    */
-  hooksApply: (install: boolean, fingerprint: string) =>
-    callOrThrow<string>("hooks_apply", { install, fingerprint }),
+  hooksApply: (agent: string, install: boolean, fingerprint: string) =>
+    callOrThrow<string>("hooks_apply", { agent, install, fingerprint }),
 
   approvalDecision: (requestId: string, decision: "allow" | "deny") =>
     call<void>("approval_decision", { requestId, decision }),
@@ -117,6 +119,8 @@ export interface DroppedFile {
 }
 
 export interface HookStatus {
+  id: string;
+  name: string;
   installed: boolean;
   settingsPath: string;
   hookPath: string;

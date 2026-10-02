@@ -1,7 +1,7 @@
 // Preferences, stored as plain JSON in settings.json under platform::config_dir().
 // No secret ever lands here — API keys live in the OS keychain (see secrets.rs).
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -15,7 +15,11 @@ pub struct Settings {
     /// "primary" = the main display, "cursor" = whichever display the mouse is on.
     pub screen: String,
     pub autostart: bool,
-    pub hooks_installed: bool,
+    /// Ids of the CLI agents whose hooks are installed (see hooks::AGENTS).
+    /// Older builds stored a single bool for Claude Code; `installed_agents`
+    /// accepts both so an existing settings.json still loads.
+    #[serde(default, deserialize_with = "installed_agents")]
+    pub hooks_installed: Vec<String>,
     /// Claude model used by the chat. Changeable in the settings window.
     /// Defaulted explicitly so a settings.json written by an older build still loads.
     #[serde(default = "default_model")]
@@ -40,6 +44,25 @@ pub struct Settings {
 
 fn default_model() -> String {
     crate::claude::DEFAULT_MODEL.to_string()
+}
+
+/// `hooksInstalled` used to be `true`/`false` for Claude Code alone. Read both
+/// shapes: a bool maps onto Claude, a list is taken as it is.
+fn installed_agents<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Stored {
+        Bool(bool),
+        List(Vec<String>),
+    }
+    Ok(match Stored::deserialize(deserializer)? {
+        Stored::Bool(true) => vec!["claude".into()],
+        Stored::Bool(false) => Vec::new(),
+        Stored::List(ids) => ids,
+    })
 }
 
 fn default_theme() -> String {
@@ -73,7 +96,7 @@ impl Default for Settings {
             ],
             screen: "primary".into(),
             autostart: false,
-            hooks_installed: false,
+            hooks_installed: Vec::new(),
             model: default_model(),
             theme: default_theme(),
             position: default_position(),

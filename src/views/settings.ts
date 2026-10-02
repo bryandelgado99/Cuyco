@@ -4,7 +4,8 @@
 import { Bridge, type HookStatus } from "../core/bridge";
 import { State, EDITORS, type Settings } from "../core/state";
 import { applyTheme, type Theme } from "../core/theme";
-import { h, clear, dot } from "./dom";
+import { h, clear, dot, svg } from "./dom";
+import { ICONS } from "./icons";
 import { accordion, type AccordionSection } from "./accordion";
 import type { ViewHost } from "./views";
 
@@ -85,19 +86,125 @@ function switchControl(get: () => boolean, set: (v: boolean) => void): Control {
   };
 }
 
-/** A `.seg` group bound to a getter/setter. No native <select>: OS popups are
- *  unreliable in a non-activating, always-on-top overlay. */
-function segControl<T>(options: readonly (readonly [T, string])[], get: () => T, set: (v: T) => void): Control {
-  const buttons = options.map(([value, label]) =>
-    h("button", { type: "button", onclick: () => set(value) }, label));
-  const el = h("div", { class: "seg" }, ...buttons);
-  return {
-    el,
-    sync: () => {
-      const v = get();
-      buttons.forEach((b, i) => b.classList.toggle("on", options[i][0] === v));
-    },
-  };
+/** Menus currently open, so navigating away (or collapsing) can dismiss them. */
+const openMenus = new Set<() => void>();
+
+export function closeSettingsMenus() {
+  for (const close of [...openMenus]) close();
+}
+
+/** True while a dropdown menu is open — the island defers Escape to it. */
+export function settingsMenuOpen(): boolean {
+  return openMenus.size > 0;
+}
+
+/**
+ * A custom dropdown bound to a getter/setter: a trigger showing the current
+ * value and a floating menu. No native <select> — OS popups misbehave in a
+ * non-activating, always-on-top overlay. The menu lives on <body> and is clamped
+ * inside the island, so neither the panel's scroll box nor the accordion's
+ * overflow can clip it.
+ */
+function dropdownControl<T>(
+  options: readonly (readonly [T, string])[],
+  get: () => T,
+  set: (v: T) => void,
+): Control {
+  const value = h("span", { class: "dd-value" });
+  const el = h(
+    "button",
+    { class: "dd-trigger", type: "button", "aria-haspopup": "listbox", "aria-expanded": "false" },
+    value,
+    svg(ICONS.chevronRight, 12),
+  );
+
+  let menu: HTMLElement | null = null;
+
+  function close() {
+    if (!menu) return;
+    menu.remove();
+    menu = null;
+    el.classList.remove("open");
+    el.setAttribute("aria-expanded", "false");
+    openMenus.delete(close);
+    document.removeEventListener("mousedown", onDocDown, true);
+    window.removeEventListener("keydown", onKey);
+    window.removeEventListener("scroll", close, true);
+    window.removeEventListener("resize", close);
+  }
+
+  function onKey(e: KeyboardEvent) {
+    if (e.key === "Escape") close();
+  }
+
+  function onDocDown(e: MouseEvent) {
+    const target = e.target as Node;
+    if (menu?.contains(target) || el.contains(target)) return;
+    close();
+  }
+
+  function place() {
+    if (!menu) return;
+    const trigger = el.getBoundingClientRect();
+    const island = document.getElementById("island")?.getBoundingClientRect();
+    const bounds = island ?? { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth };
+    const mw = menu.offsetWidth;
+    const mh = menu.offsetHeight;
+    let top = trigger.bottom + 4;
+    if (top + mh > bounds.bottom - 4) top = trigger.top - mh - 4;
+    top = Math.max(bounds.top + 4, top);
+    const left = Math.max(bounds.left + 4, Math.min(trigger.right - mw, bounds.right - mw - 4));
+    menu.style.top = `${top}px`;
+    menu.style.left = `${left}px`;
+  }
+
+  function open() {
+    if (menu) {
+      close();
+      return;
+    }
+    const current = get();
+    menu = h("div", { class: "dd-menu", role: "listbox" });
+    for (const [optValue, label] of options) {
+      const selected = optValue === current;
+      const option = h(
+        "button",
+        {
+          class: selected ? "dd-option on" : "dd-option",
+          type: "button",
+          role: "option",
+          "aria-selected": String(selected),
+        },
+        h("span", { class: "dd-check" }, selected ? svg(ICONS.check, 12) : null),
+        h("span", { class: "dd-label", text: label }),
+      );
+      option.addEventListener("click", () => {
+        set(optValue);
+        close();
+      });
+      menu.append(option);
+    }
+    document.body.append(menu);
+    el.classList.add("open");
+    el.setAttribute("aria-expanded", "true");
+    place();
+    openMenus.add(close);
+    document.addEventListener("mousedown", onDocDown, true);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    (menu.querySelector(".dd-option.on") as HTMLElement | null)?.focus();
+  }
+
+  function syncValue() {
+    const current = get();
+    value.textContent = options.find(([v]) => v === current)?.[1] ?? "";
+  }
+
+  el.addEventListener("click", open);
+  syncValue();
+
+  return { el, sync: syncValue };
 }
 
 function row(label: string, ...controls: Node[]): HTMLElement {
@@ -118,27 +225,27 @@ function generalPanel(): Control & { body: HTMLElement } {
       save();
     },
   }) as HTMLInputElement;
-  const auto = segControl<number>(
+  const auto = dropdownControl<number>(
     [[10, "10s"], [15, "15s"], [30, "30s"]],
     () => Math.round(State.settings.autoCloseInterval),
     (v) => { State.settings.autoCloseInterval = v; save(); },
   );
-  const screen = segControl<Settings["screen"]>(
+  const screen = dropdownControl<Settings["screen"]>(
     [["primary", "Main display"], ["cursor", "Under cursor"]],
     () => State.settings.screen,
     (v) => { State.settings.screen = v; save(); },
   );
-  const theme = segControl<Theme>(
+  const theme = dropdownControl<Theme>(
     [["system", "System"], ["light", "Light"], ["dark", "Dark"]],
     () => State.settings.theme,
     (v) => { State.settings.theme = v; applyTheme(v); save(); },
   );
-  const position = segControl<Settings["position"]>(
+  const position = dropdownControl<Settings["position"]>(
     [["top", "Top"], ["left", "Left"], ["right", "Right"]],
     () => State.settings.position,
     (v) => { State.settings.position = v; save(); },
   );
-  const editor = segControl<Settings["editor"]>(
+  const editor = dropdownControl<Settings["editor"]>(
     EDITORS.map((e) => [e.id, e.label] as const),
     () => State.settings.editor,
     (v) => { State.settings.editor = v; save(); },
@@ -190,106 +297,129 @@ function generalPanel(): Control & { body: HTMLElement } {
   };
 }
 
-// ── Claude Code ───────────────────────────────────────────────────────────────
+// ── Agents ────────────────────────────────────────────────────────────────────
 
-function claudeCodePanel(): { body: HTMLElement; status: HTMLElement; sync: () => void; refresh: () => Promise<void> } {
-  let status: HookStatus = { installed: false, settingsPath: "", hookPath: "", hookReady: false };
+/**
+ * One block per CLI agent Cuyco can watch. Each keeps its own diff preview:
+ * installing Codex's hooks must never look like it is about to touch Claude
+ * Code's config.
+ */
+function agentsPanel(): { body: HTMLElement; status: HTMLElement; sync: () => void; refresh: () => Promise<void> } {
+  let statuses: HookStatus[] = [];
   const statusEl = dot("var(--md-error)", 6);
+  const relay = h("div", { class: "row" });
   const body = h("div", { class: "panel-body" });
+
+  function agentBlock(s: HookStatus): HTMLElement {
+    const el = h("div", { class: "agent-block" });
+
+    const drawDefault = () => {
+      clear(el);
+      el.append(
+        h("div", { class: "row" }, h("label", { text: s.name }), h("span", { class: "path", text: s.settingsPath })),
+      );
+      const install = h("button", {
+        class: "primary",
+        text: s.installed ? "Reinstall hooks…" : "Install hooks…",
+        onclick: () => void showPreview(true),
+      });
+      // Writing hook commands that point at a relay which isn't there would give
+      // every session a broken hook and nothing to show for it.
+      if (!s.hookReady) {
+        (install as HTMLButtonElement).disabled = true;
+        install.title = "The relay isn't installed yet.";
+      }
+      const actions = h("div", { class: "row" }, install);
+      if (s.installed) {
+        actions.append(h("button", { class: "danger", text: "Uninstall hooks…", onclick: () => void showPreview(false) }));
+      }
+      el.append(actions);
+    };
+
+    const showPreview = async (install: boolean) => {
+      let preview;
+      try {
+        preview = await Bridge.hooksPreview(s.id, install);
+      } catch (err) {
+        // An unreadable or invalid config stops here rather than being treated
+        // as empty and written over.
+        clear(el);
+        el.append(
+          h("div", { class: "notice err", text: String(err).replace(/^Error:\s*/, "") }),
+          h("div", { class: "row" }, h("button", { text: "Back", onclick: drawDefault })),
+        );
+        return;
+      }
+      if (!preview) return;
+      clear(el);
+      el.append(
+        h("div", {
+          class: "hint",
+          text: install
+            ? `This is exactly what will change in ${s.settingsPath}. Your own hooks are left untouched.`
+            : "This removes Cuyco's entries only. Your own hooks are left untouched.",
+        }),
+        renderDiff(preview.diff),
+        h("div", { class: "row" }, h("span", { class: "path", text: `Backup → ${preview.backup}` })),
+      );
+      const confirm = h("button", {
+        class: install ? "primary" : "danger",
+        text: install ? "Back up and write" : "Back up and remove",
+      });
+      confirm.addEventListener("click", async () => {
+        (confirm as HTMLButtonElement).disabled = true;
+        try {
+          const backup = await Bridge.hooksApply(s.id, install, preview!.fingerprint);
+          clear(el);
+          el.append(h("div", {
+            class: "notice ok",
+            text: `Done. Previous settings saved as ${backup}. Open a new ${s.name} session to pick the hooks up.`,
+          }));
+          window.setTimeout(() => void refresh(), 2600);
+        } catch (err) {
+          (confirm as HTMLButtonElement).disabled = false;
+          el.append(h("div", { class: "notice err", text: `Could not write: ${String(err)}` }));
+        }
+      });
+      el.append(h("div", { class: "row" }, confirm, h("button", { text: "Cancel", onclick: drawDefault })));
+    };
+
+    drawDefault();
+    return el;
+  }
 
   function draw() {
     clear(body);
+    clear(relay);
+    const first = statuses[0];
+    relay.append(
+      h("label", { text: "Relay" }),
+      h("span", { class: "path", text: first?.hookPath ?? "" }),
+      statusDot(first?.hookReady ?? false),
+    );
     body.append(
       h("div", {
         class: "hint",
-        text: status.installed
-          ? "Cuyco is hooked into your Claude Code sessions. Tool calls, questions and permission requests show up in the island, and you can answer them there."
-          : "Install the hooks to see your Claude Code sessions in the island and approve permissions without leaving what you are doing.",
+        text: "Cuyco shows the sessions of the agents you hook here: tool calls, questions and permission requests show up in the island, and you can answer them there.",
       }),
-      h("div", { class: "row" }, h("label", { text: "settings.json" }), h("span", { class: "path", text: status.settingsPath })),
-      h("div", { class: "row" }, h("label", { text: "Relay" }), h("span", { class: "path", text: status.hookPath }), statusDot(status.hookReady)),
+      relay,
     );
-
-    if (!status.hookReady) {
+    if (first && !first.hookReady) {
       body.append(h("div", {
         class: "notice warn",
         text: "cuyco-hook.exe is not in place yet. Restart Cuyco; if it still fails, build it with `cargo build -p cuyco-hook`.",
       }));
     }
-
-    const install = h("button", {
-      class: "primary",
-      text: status.installed ? "Reinstall hooks…" : "Install hooks…",
-      onclick: () => void showPreview(true),
-    });
-    // Writing hook commands that point at a relay which isn't there would give
-    // every Claude Code session a broken hook and nothing to show for it.
-    if (!status.hookReady) {
-      (install as HTMLButtonElement).disabled = true;
-      install.title = "The relay isn't installed yet.";
-    }
-    const actions = h("div", { class: "row" }, install);
-    if (status.installed) {
-      actions.append(h("button", { class: "danger", text: "Uninstall hooks…", onclick: () => void showPreview(false) }));
-    }
-    body.append(actions);
-  }
-
-  async function showPreview(install: boolean) {
-    let preview;
-    try {
-      preview = await Bridge.hooksPreview(install);
-    } catch (err) {
-      // An unreadable or invalid settings.json stops here rather than being
-      // treated as empty and written over.
-      clear(body);
-      body.append(
-        h("div", { class: "notice err", text: String(err).replace(/^Error:\s*/, "") }),
-        h("div", { class: "row" }, h("button", { text: "Back", onclick: () => draw() })),
-      );
-      return;
-    }
-    if (!preview) return;
-    clear(body);
-    body.append(
-      h("div", {
-        class: "hint",
-        text: install
-          ? "This is exactly what will change in your settings.json. Your own hooks are left untouched."
-          : "This removes Cuyco's entries only. Your own hooks are left untouched.",
-      }),
-      renderDiff(preview.diff),
-      h("div", { class: "row" }, h("span", { class: "path", text: `Backup → ${preview.backup}` })),
-    );
-    const confirm = h("button", {
-      class: install ? "primary" : "danger",
-      text: install ? "Back up and write" : "Back up and remove",
-    });
-    confirm.addEventListener("click", async () => {
-      (confirm as HTMLButtonElement).disabled = true;
-      try {
-        const backup = await Bridge.hooksApply(install, preview!.fingerprint);
-        clear(body);
-        body.append(h("div", {
-          class: "notice ok",
-          text: `Done. Previous settings saved as ${backup}. Open a new Claude Code session to pick the hooks up.`,
-        }));
-        window.setTimeout(() => void refresh(), 2600);
-      } catch (err) {
-        (confirm as HTMLButtonElement).disabled = false;
-        body.append(h("div", { class: "notice err", text: `Could not write: ${String(err)}` }));
-      }
-    });
-    body.append(h("div", { class: "row" }, confirm, h("button", { text: "Cancel", onclick: () => draw() })));
+    for (const s of statuses) body.append(agentBlock(s));
   }
 
   const sync = () => {
-    statusEl.style.background = status.installed ? "var(--md-success)" : "var(--md-error)";
+    statusEl.style.background = statuses.some((s) => s.installed) ? "var(--md-success)" : "var(--md-error)";
   };
 
   async function refresh() {
     const fresh = await Bridge.hooksStatus();
-    if (fresh) status = fresh;
+    if (fresh) statuses = fresh;
     sync();
     draw();
   }
@@ -312,7 +442,7 @@ function apiPanel(): { body: HTMLElement; status: HTMLElement; sync: () => void;
   const clearBtn = h("button", { class: "danger", text: "Remove" });
   const feedback = h("div", {});
 
-  const model = segControl<string>(
+  const model = dropdownControl<string>(
     MODELS,
     () => State.settings.model,
     (v) => { State.settings.model = v; save(); },
@@ -459,13 +589,13 @@ export function buildSettingsView(): ViewHost {
   const present: Record<string, boolean> = {};
 
   const general = generalPanel();
-  const claudeCode = claudeCodePanel();
+  const agents = agentsPanel();
   const api = apiPanel();
   const integrations = integrationsPanel(present);
 
   const sections: AccordionSection[] = [
     { title: "General", body: general.body },
-    { title: "Claude Code", body: claudeCode.body, trailing: claudeCode.status },
+    { title: "Agents", body: agents.body, trailing: agents.status },
     { title: "Claude", body: api.body, trailing: api.status },
     { title: "Integrations", body: integrations.body },
   ];
@@ -476,8 +606,14 @@ export function buildSettingsView(): ViewHost {
     h("div", { class: "card" }, h("div", { class: "settings-panel" }, accordion(sections))),
   );
 
+  // A menu belongs to this view: leaving it (or the island collapsing) dismisses
+  // any open dropdown instead of leaving it floating over the desktop.
+  State.subscribe(() => {
+    if (State.view !== "settings" || State.mode !== "expanded") closeSettingsMenus();
+  });
+
   async function load() {
-    await claudeCode.refresh();
+    await agents.refresh();
     await api.refresh();
     await integrations.refresh();
     integrations.sync();
@@ -487,7 +623,7 @@ export function buildSettingsView(): ViewHost {
     el,
     sync() {
       general.sync();
-      claudeCode.sync();
+      agents.sync();
       api.sync();
       integrations.sync();
       if (!loaded) {

@@ -90,7 +90,8 @@ export interface Settings {
   activeIntegrations: string[];
   screen: "primary" | "cursor";
   autostart: boolean;
-  hooksInstalled: boolean;
+  /** Ids of the agents whose hooks are installed (see hooks::AGENTS). */
+  hooksInstalled: string[];
   /** Claude model used by the chat. */
   model: string;
   /** "system" follows the OS; "light" / "dark" force one. */
@@ -115,7 +116,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ],
   screen: "primary",
   autostart: false,
-  hooksInstalled: false,
+  hooksInstalled: [],
   model: "claude-opus-5",
   theme: "system",
   position: "top",

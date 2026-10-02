@@ -1,13 +1,14 @@
-// Claude Code hook installation.
+// Agent hook installation (Claude Code today; Command Code, Codex and OpenCode
+// slot into the same registry).
 //
-// The rule from CLAUDE.md is strict and is followed to the letter:
-// read %USERPROFILE%\.claude\settings.json, take a dated backup, merge without
-// touching anybody else's hooks, show the diff, and write only after an explicit
-// click. Uninstall removes Cuyco's entries and nothing else.
+// The rule from CLAUDE.md is strict and is followed to the letter: read the
+// agent's own config, take a dated backup, merge without touching anybody else's
+// hooks, show the diff, and write only after an explicit click. Uninstall removes
+// Cuyco's entries and nothing else.
 //
-// The command is only the quoted exe path in forward slashes plus the event name:
-// on Windows Claude Code runs hook commands through Git Bash, and anything with
-// PowerShell or cmd in it breaks.
+// The command is only the quoted exe path plus the event name: on Windows Claude
+// Code runs hook commands through Git Bash, and anything with PowerShell or cmd
+// in it breaks.
 
 use std::path::{Path, PathBuf};
 
@@ -16,9 +17,25 @@ use serde_json::{json, Map, Value};
 use tauri::{AppHandle, Manager};
 use crate::{platform, settings};
 
-/// Every event the island reacts to, with the hook timeout written to settings.json.
-/// PermissionRequest waits for a human, so it gets the decision timeout + 10 s.
-pub const HOOK_EVENTS: &[(&str, u64)] = &[
+/// One CLI agent Cuyco can watch.
+pub struct Agent {
+    /// Stable id, also used as the relay's `--agent` tag.
+    pub id: &'static str,
+    pub name: &'static str,
+    /// `None` for Claude Code: its hooks are written without `--agent`, which is
+    /// how every existing install looks, so they are recognised as untagged.
+    pub tag: Option<&'static str>,
+    /// Every event the island reacts to, with the hook timeout written to the
+    /// agent's config. PermissionRequest waits for a human, so it gets the
+    /// decision timeout + 10 s.
+    pub events: &'static [(&'static str, u64)],
+    /// The agent's own config file.
+    pub config: fn() -> PathBuf,
+}
+
+/// Claude Code's events: the full vocabulary, with permission requests on the
+/// long timeout because the relay holds the connection until a human answers.
+const CLAUDE_EVENTS: &[(&str, u64)] = &[
     ("SessionStart", 10),
     ("SessionEnd", 10),
     ("UserPromptSubmit", 10),
@@ -33,12 +50,22 @@ pub const HOOK_EVENTS: &[(&str, u64)] = &[
     ("SubagentStop", 10),
 ];
 
-/// Marker that identifies a Cuyco entry inside settings.json.
+pub const AGENTS: &[Agent] = &[Agent {
+    id: "claude",
+    name: "Claude Code",
+    tag: None,
+    events: CLAUDE_EVENTS,
+    config: claude_settings_path,
+}];
+
+/// Marker that identifies a Cuyco entry inside an agent's config.
 const MARKER: &str = "cuyco-hook";
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HookStatus {
+    pub id: String,
+    pub name: String,
     pub installed: bool,
     pub settings_path: String,
     pub hook_path: String,
@@ -56,18 +83,27 @@ pub struct HookPreview {
     pub fingerprint: String,
 }
 
-pub fn settings_path() -> PathBuf {
+pub fn agent(id: &str) -> Option<&'static Agent> {
+    AGENTS.iter().find(|a| a.id == id)
+}
+
+fn claude_settings_path() -> PathBuf {
     platform::home_dir().join(".claude").join("settings.json")
 }
 
-/// Reads `~/.claude/settings.json`.
+/// The agent's config path.
+fn settings_path(agent: &Agent) -> PathBuf {
+    (agent.config)()
+}
+
+/// Reads the agent's config.
 ///
 /// The only error that means "start from nothing" is the file not being there.
 /// Everything else — a lock held by another process, a permission problem, JSON
 /// we cannot parse — is reported, because the alternative is treating somebody's
 /// unreadable settings as an empty object and then writing that back over them.
-fn read_settings() -> Result<Value, String> {
-    let path = settings_path();
+fn read_settings(agent: &Agent) -> Result<Value, String> {
+    let path = settings_path(agent);
     match std::fs::read(&path) {
         Ok(bytes) => parse_settings(&bytes, &path.display().to_string()),
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(json!({})),
@@ -99,22 +135,35 @@ fn parse_settings(bytes: &[u8], path: &str) -> Result<Value, String> {
 /// The settings as they are, or an empty object when we cannot tell. Only for
 /// read-only paths like `status()`, which must never fail loudly; anything that
 /// writes uses `read_settings()` and surfaces the error instead.
-fn read_settings_lossy() -> Value {
-    read_settings().unwrap_or_else(|_| json!({}))
+fn read_settings_lossy(agent: &Agent) -> Value {
+    read_settings(agent).unwrap_or_else(|_| json!({}))
+}
+
+/// The trailing arguments of a hook command: the agent tag (when the agent has
+/// one) and the event name. Claude Code's entries carry no tag.
+fn hook_args(agent: &Agent, event: &str) -> String {
+    match agent.tag {
+        Some(tag) => format!("--agent {tag} {event}"),
+        None => event.to_string(),
+    }
 }
 
 #[cfg(windows)]
-fn hook_command(event: &str) -> String {
+fn hook_command(agent: &Agent, event: &str) -> String {
     let exe = settings::hook_exe_path().to_string_lossy().replace('\\', "/");
-    format!("\"{exe}\" {event}")
+    format!("\"{exe}\" {}", hook_args(agent, event))
 }
 
-/// Claude Code runs the command through `sh`, which still reads `$`, `` ` ``
-/// and `\` inside double quotes. Single quotes keep the path a path, whatever
-/// the home directory is called.
+/// The agents run the command through `sh`, which still reads `$`, `` ` `` and
+/// `\` inside double quotes. Single quotes keep the path a path, whatever the
+/// home directory is called.
 #[cfg(unix)]
-fn hook_command(event: &str) -> String {
-    format!("{} {event}", sh_quote(&settings::hook_exe_path().to_string_lossy()))
+fn hook_command(agent: &Agent, event: &str) -> String {
+    format!(
+        "{} {}",
+        sh_quote(&settings::hook_exe_path().to_string_lossy()),
+        hook_args(agent, event)
+    )
 }
 
 /// `s` as one single-quoted shell word: `'` becomes `'\''`, nothing else is
@@ -124,7 +173,23 @@ fn sh_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', r"'\''"))
 }
 
-fn entry_is_ours(entry: &Value) -> bool {
+/// True when `command` is one Cuyco wrote for this agent. The marker alone is not
+/// enough once several agents share the relay: the `--agent` tag says whose entry
+/// it is, and Claude Code's untagged entries must not be confused with them.
+fn command_is_ours(command: &str, agent: &Agent) -> bool {
+    if !command.contains(MARKER) {
+        return false;
+    }
+    match agent.tag {
+        None => !command.contains("--agent"),
+        Some(tag) => {
+            let needle = format!("--agent {tag}");
+            command.contains(&format!("{needle} ")) || command.ends_with(&needle)
+        }
+    }
+}
+
+fn entry_is_ours(entry: &Value, agent: &Agent) -> bool {
     entry
         .get("hooks")
         .and_then(Value::as_array)
@@ -132,15 +197,15 @@ fn entry_is_ours(entry: &Value) -> bool {
             hooks.iter().any(|h| {
                 h.get("command")
                     .and_then(Value::as_str)
-                    .map(|c| c.contains(MARKER))
+                    .map(|c| command_is_ours(c, agent))
                     .unwrap_or(false)
             })
         })
         .unwrap_or(false)
 }
 
-/// Settings with Cuyco's hooks added; everything else is left untouched.
-fn merged(existing: &Value) -> Value {
+/// Settings with this agent's hooks added; everything else is left untouched.
+fn merged(existing: &Value, agent: &Agent) -> Value {
     let mut root = existing.as_object().cloned().unwrap_or_default();
     let mut hooks = root
         .get("hooks")
@@ -148,17 +213,17 @@ fn merged(existing: &Value) -> Value {
         .cloned()
         .unwrap_or_else(Map::new);
 
-    for (event, timeout) in HOOK_EVENTS {
+    for (event, timeout) in agent.events {
         let mut list = hooks
             .get(*event)
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        list.retain(|entry| !entry_is_ours(entry));
+        list.retain(|entry| !entry_is_ours(entry, agent));
         list.push(json!({
             "hooks": [{
                 "type": "command",
-                "command": hook_command(event),
+                "command": hook_command(agent, event),
                 "timeout": timeout,
             }]
         }));
@@ -170,7 +235,7 @@ fn merged(existing: &Value) -> Value {
 }
 
 /// Settings with every Cuyco entry removed, and nothing else changed.
-fn without_ours(existing: &Value) -> Value {
+fn without_ours(existing: &Value, agent: &Agent) -> Value {
     let mut root = existing.as_object().cloned().unwrap_or_default();
     let Some(hooks) = root.get("hooks").and_then(Value::as_object).cloned() else {
         return Value::Object(root);
@@ -179,8 +244,11 @@ fn without_ours(existing: &Value) -> Value {
     for (event, value) in hooks {
         match value.as_array() {
             Some(list) => {
-                let kept: Vec<Value> =
-                    list.iter().filter(|e| !entry_is_ours(e)).cloned().collect();
+                let kept: Vec<Value> = list
+                    .iter()
+                    .filter(|e| !entry_is_ours(e, agent))
+                    .cloned()
+                    .collect();
                 if !kept.is_empty() {
                     out.insert(event, Value::Array(kept));
                 }
@@ -212,9 +280,13 @@ fn stamp() -> String {
     )
 }
 
-fn backup_path() -> PathBuf {
-    let p = settings_path();
-    p.with_file_name(format!("settings.json.bak-{}", stamp()))
+fn backup_path(agent: &Agent) -> PathBuf {
+    let p = settings_path(agent);
+    let name = p
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "settings.json".into());
+    p.with_file_name(format!("{name}.bak-{}", stamp()))
 }
 
 /// Identifies the exact bytes a preview was computed from. FNV-1a is plenty:
@@ -228,8 +300,8 @@ fn fingerprint(bytes: &[u8]) -> String {
     format!("{hash:016x}")
 }
 
-fn current_fingerprint() -> String {
-    match std::fs::read(settings_path()) {
+fn current_fingerprint(agent: &Agent) -> String {
+    match std::fs::read(settings_path(agent)) {
         Ok(bytes) => fingerprint(&bytes),
         Err(_) => fingerprint(b""),
     }
@@ -237,8 +309,8 @@ fn current_fingerprint() -> String {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-pub fn status() -> HookStatus {
-    let current = read_settings_lossy();
+pub fn status(agent: &Agent) -> HookStatus {
+    let current = read_settings_lossy(agent);
     let installed = current
         .get("hooks")
         .and_then(Value::as_object)
@@ -247,26 +319,46 @@ pub fn status() -> HookStatus {
                 .values()
                 .filter_map(Value::as_array)
                 .flatten()
-                .any(entry_is_ours)
+                .any(|e| entry_is_ours(e, agent))
         })
         .unwrap_or(false);
     let hook_path = settings::hook_exe_path();
     HookStatus {
+        id: agent.id.to_string(),
+        name: agent.name.to_string(),
         installed,
-        settings_path: settings_path().to_string_lossy().to_string(),
+        settings_path: settings_path(agent).to_string_lossy().to_string(),
         hook_ready: hook_path.exists(),
         hook_path: hook_path.to_string_lossy().to_string(),
     }
 }
 
-pub fn preview(install: bool) -> Result<HookPreview, String> {
-    let current = read_settings()?;
-    let next = if install { merged(&current) } else { without_ours(&current) };
+/// Every agent's status, for the settings panel.
+pub fn statuses() -> Vec<HookStatus> {
+    AGENTS.iter().map(status).collect()
+}
+
+/// The ids of the agents whose hooks are actually in their config right now.
+pub fn installed_agents() -> Vec<String> {
+    AGENTS
+        .iter()
+        .filter(|a| status(a).installed)
+        .map(|a| a.id.to_string())
+        .collect()
+}
+
+pub fn preview(agent: &Agent, install: bool) -> Result<HookPreview, String> {
+    let current = read_settings(agent)?;
+    let next = if install {
+        merged(&current, agent)
+    } else {
+        without_ours(&current, agent)
+    };
     Ok(HookPreview {
         diff: unified_diff(&pretty(&current), &pretty(&next)),
-        backup: backup_path().to_string_lossy().to_string(),
-        settings_path: settings_path().to_string_lossy().to_string(),
-        fingerprint: current_fingerprint(),
+        backup: backup_path(agent).to_string_lossy().to_string(),
+        settings_path: settings_path(agent).to_string_lossy().to_string(),
+        fingerprint: current_fingerprint(agent),
     })
 }
 
@@ -276,27 +368,31 @@ pub fn preview(install: bool) -> Result<HookPreview, String> {
 /// in between — another tool, another window, the user's own editor — we stop
 /// and make them look at a fresh diff, because the only thing worse than not
 /// installing the hooks is silently reverting somebody else's edit.
-pub fn write(install: bool, fingerprint: &str) -> Result<String, String> {
-    let path = settings_path();
+pub fn write(agent: &Agent, install: bool, fingerprint: &str) -> Result<String, String> {
+    let path = settings_path(agent);
     let dir = path.parent().unwrap_or(Path::new("."));
     std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
 
     // Read before the backup: an unreadable file must abort before we touch
     // anything at all.
-    let current = read_settings()?;
-    if current_fingerprint() != fingerprint {
+    let current = read_settings(agent)?;
+    if current_fingerprint(agent) != fingerprint {
         return Err(format!(
             "{} changed since the preview. Nothing was written — review the new diff.",
             path.display()
         ));
     }
 
-    let backup = backup_path();
+    let backup = backup_path(agent);
     if path.exists() {
         std::fs::copy(&path, &backup).map_err(|e| format!("backup failed: {e}"))?;
     }
 
-    let next = if install { merged(&current) } else { without_ours(&current) };
+    let next = if install {
+        merged(&current, agent)
+    } else {
+        without_ours(&current, agent)
+    };
     let mut text = pretty(&next);
     text.push('\n');
 
@@ -357,7 +453,7 @@ fn write_like(temp: &Path, original: &Path, bytes: &[u8]) -> std::io::Result<()>
 pub fn ensure_hook_exe(app: &AppHandle) {
     let dest = settings::hook_exe_path();
     let Some(dir) = dest.parent() else { return };
-    // Nobody else may swap the relay Claude Code runs: its folder is ours only.
+    // Nobody else may swap the relay the agents run: its folder is ours only.
     if platform::ensure_private_dir(&settings::local_dir()).is_err()
         || std::fs::create_dir_all(dir).is_err()
     {
@@ -382,7 +478,7 @@ pub fn ensure_hook_exe(app: &AppHandle) {
     let tried: Vec<String> = candidates.iter().map(|p| p.display().to_string()).collect();
     let Some(src) = candidates.into_iter().find(|p| p.exists()) else {
         crate::log::line(format!(
-            "{} not found — Claude Code hooks cannot work. Looked in: {}",
+            "{} not found — agent hooks cannot work. Looked in: {}",
             platform::HOOK_EXE,
             tried.join(", ")
         ));
@@ -511,6 +607,29 @@ mod tests {
 
     const WHERE: &str = "settings.json";
 
+    fn claude() -> &'static Agent {
+        agent("claude").expect("claude is always registered")
+    }
+
+    /// A stand-in for an agent that has not been added yet, so the registry's
+    /// per-agent matching can be tested before Command Code/Codex land.
+    fn tagged(id: &'static str, tag: &'static str) -> Agent {
+        Agent { id, name: id, tag: Some(tag), events: &[], config: claude_settings_path }
+    }
+
+    #[test]
+    fn an_agents_entries_are_never_mistaken_for_anothers() {
+        let cc = tagged("commandcode", "commandcode");
+        let codex = tagged("codex", "codex");
+        assert!(command_is_ours("\"x/cuyco-hook.exe\" PreToolUse", claude()));
+        assert!(!command_is_ours("\"x/cuyco-hook.exe\" --agent codex PreToolUse", claude()));
+        assert!(command_is_ours("\"x/cuyco-hook.exe\" --agent codex PreToolUse", &codex));
+        assert!(!command_is_ours("\"x/cuyco-hook.exe\" --agent commandcode Stop", &codex));
+        assert!(!command_is_ours("someone-else.exe", &codex));
+        // "code" is a prefix of "codex": matching must not be that loose.
+        assert!(!command_is_ours("\"x/cuyco-hook.exe\" --agent codex Stop", &cc));
+    }
+
     #[test]
     fn a_utf8_bom_is_stripped_not_treated_as_corruption() {
         // PowerShell 5's `Set-Content -Encoding utf8` produces exactly this.
@@ -556,7 +675,7 @@ mod tests {
             }
         });
 
-        let after = merged(&existing);
+        let after = merged(&existing, claude());
         assert_eq!(after["model"], "claude-opus-5");
         assert_eq!(after["theme"], "dark");
         assert_eq!(after["enabledPlugins"], serde_json::json!(["a", "b"]));
@@ -566,11 +685,11 @@ mod tests {
             pre.iter().any(|e| serde_json::to_string(e).unwrap().contains("someone-elses-tool.exe")),
             "another tool's hook was dropped"
         );
-        assert!(pre.iter().any(entry_is_ours), "our own hook was not added");
+        assert!(pre.iter().any(|e| entry_is_ours(e, claude())), "our own hook was not added");
         assert!(after["hooks"]["SomeEventWeDoNotTouch"].is_array());
 
         // And removing ours puts it back exactly as it was.
-        let cleaned = without_ours(&after);
+        let cleaned = without_ours(&after, claude());
         assert_eq!(cleaned, existing);
     }
 
@@ -630,7 +749,7 @@ mod tests {
         std::fs::create_dir_all(tmp.join(".claude")).unwrap();
         std::env::set_var(platform::HOME_VAR, &tmp);
 
-        let path = settings_path();
+        let path = settings_path(claude());
         assert!(path.starts_with(&tmp), "the test must not touch the real home");
 
         // A real-shaped file, written the way PowerShell 5 would: UTF-8 with BOM.
@@ -640,9 +759,9 @@ mod tests {
         std::fs::write(&path, &bytes).unwrap();
 
         // Install.
-        let plan = preview(true).expect("a BOM must not stop the preview");
+        let plan = preview(claude(), true).expect("a BOM must not stop the preview");
         assert!(plan.diff.contains("cuyco-hook"), "the diff must show what changes");
-        let backup = write(true, &plan.fingerprint).expect("install should succeed");
+        let backup = write(claude(), true, &plan.fingerprint).expect("install should succeed");
 
         // The backup holds the original bytes, BOM and all.
         assert_eq!(std::fs::read(&backup).unwrap(), bytes);
@@ -654,20 +773,20 @@ mod tests {
         assert_eq!(after["tui"]["x"], 1);
         let pre = after["hooks"]["PreToolUse"].as_array().unwrap();
         assert!(pre.iter().any(|e| serde_json::to_string(e).unwrap().contains("other-tool.exe")));
-        assert!(status().installed);
+        assert!(status(claude()).installed);
 
         // A file that moved since the preview is refused, and left alone.
-        let stale = preview(false).unwrap();
+        let stale = preview(claude(), false).unwrap();
         std::fs::write(&path, br#"{"model":"someone-else-edited-this"}"#).unwrap();
-        let err = write(false, &stale.fingerprint).unwrap_err();
+        let err = write(claude(), false, &stale.fingerprint).unwrap_err();
         assert!(err.contains("changed since the preview"), "got: {err}");
         let untouched: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         assert_eq!(untouched["model"], "someone-else-edited-this");
 
         // Content we cannot parse is refused before anything is written.
         std::fs::write(&path, b"{ broken").unwrap();
-        assert!(preview(true).is_err());
-        assert!(write(true, "whatever").is_err());
+        assert!(preview(claude(), true).is_err());
+        assert!(write(claude(), true, "whatever").is_err());
         assert_eq!(std::fs::read(&path).unwrap(), b"{ broken");
 
         let _ = std::fs::remove_dir_all(&tmp);

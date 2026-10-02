@@ -379,7 +379,7 @@ body {
 .btn,
 .link-btn,
 .icon-btn,
-.seg button,
+.dd-trigger,
 .send-btn {
   position: relative;
   overflow: hidden;
@@ -391,7 +391,7 @@ body {
 .btn::before,
 .link-btn::before,
 .icon-btn::before,
-.seg button::before,
+.dd-trigger::before,
 .send-btn::before {
   content: "";
   position: absolute;
@@ -408,7 +408,7 @@ body {
 .btn:hover::before,
 .link-btn:hover::before,
 .icon-btn:hover::before,
-.seg button:hover::before,
+.dd-trigger:hover::before,
 .send-btn:hover::before {
   opacity: var(--md-state-hover);
 }
@@ -418,7 +418,7 @@ body {
 .btn:active::before,
 .link-btn:active::before,
 .icon-btn:active::before,
-.seg button:active::before,
+.dd-trigger:active::before,
 .send-btn:active::before {
   opacity: var(--md-state-press);
 }
@@ -452,6 +452,8 @@ button:disabled {
   display: flex;
   gap: 10px;
   height: 100%;
+  /* Two columns: the cuy keeps its own gutter, the cards sit beside it. */
+  padding-left: var(--cuy-col, 108px);
 }
 
 .overview > .left {
@@ -472,11 +474,14 @@ button:disabled {
 .card-body {
   position: relative;
   z-index: 1;
-  padding-top: 10px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;
 }
 
 .who {
-  padding: 0 36px 0 108px;
+  padding: 0 36px 0 0;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -516,7 +521,7 @@ button:disabled {
 .ticker {
   position: relative;
   height: 44px;
-  margin: 6px 12px 0 108px;
+  margin: 6px 12px 0 0;
   overflow: hidden;
   -webkit-mask-image: linear-gradient(
     to bottom,
@@ -791,29 +796,88 @@ input[type="range"]::-webkit-slider-thumb {
   background: var(--md-primary);
 }
 
-.seg {
-  display: flex;
-  gap: 6px;
+/* Custom dropdown (no native <select>: OS popups misbehave in a non-activating,
+   always-on-top overlay). The trigger sits at the right of a settings row; the
+   menu is a body-level popover clamped inside the island. */
+.dd-trigger {
   margin-left: auto;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.seg button {
-  font: var(--md-font-label-medium);
-  padding: 3px 8px;
-  border: 0;
-  border-radius: var(--md-shape-full);
-  background: transparent;
-  color: var(--md-on-surface-variant);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 132px;
+  justify-content: space-between;
+  font: var(--md-font-label-large);
+  padding: 6px 10px;
+  border: 1px solid var(--md-outline);
+  border-radius: var(--md-shape-s);
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
   cursor: pointer;
   transition: background var(--md-dur-short) var(--md-ease-decel),
-    color var(--md-dur-short) var(--md-ease-decel);
+    border-radius var(--md-dur-short) var(--md-ease-pressed);
 }
 
-.seg button.on {
+.dd-trigger svg {
+  flex: 0 0 auto;
+  color: var(--md-on-surface-variant);
+  transition: transform var(--md-dur-medium) var(--md-ease-emphasized);
+}
+
+.dd-trigger.open svg {
+  transform: rotate(90deg);
+}
+
+.dd-menu {
+  position: fixed;
+  z-index: 50;
+  min-width: 148px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: var(--md-shape-m);
+  background: var(--md-surface-container-high);
+  border: 1px solid var(--md-outline-variant);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  animation: dd-in var(--md-dur-short) var(--md-ease-decel);
+}
+
+@keyframes dd-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.dd-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--md-shape-s);
+  background: transparent;
+  color: var(--md-on-surface);
+  font: var(--md-font-body-medium);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--md-dur-short) var(--md-ease-decel);
+}
+
+.dd-option:hover {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.dd-option.on {
   background: var(--md-secondary-container);
   color: var(--md-on-secondary-container);
+}
+
+.dd-check {
+  width: 14px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
 }
 
 /* ── Utility ────────────────────────────────────────────────────────────── */
@@ -839,7 +903,7 @@ input[type="range"]::-webkit-slider-thumb {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 12px 16px 14px 84px;
+  padding: 12px 16px 14px var(--cuy-col, 84px);
 }
 
 .chip-row:empty {
@@ -1137,9 +1201,11 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .int-card {
-  padding: 10px 12px 0 108px;
+  height: 100%;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
+  justify-content: safe center;
 }
 
 .int-head {
@@ -1519,18 +1585,8 @@ input[type="range"]::-webkit-slider-thumb {
 
 [data-anchor="right"] .overview {
   flex-direction: row-reverse;
-}
-
-[data-anchor="right"] .who {
-  padding: 0 108px 0 36px;
-}
-
-[data-anchor="right"] .ticker {
-  margin: 6px 108px 0 12px;
-}
-
-[data-anchor="right"] .int-card {
-  padding: 10px 108px 0 12px;
+  padding-left: 0;
+  padding-right: var(--cuy-col, 108px);
 }
 
 [data-anchor="right"] .int-head {
@@ -1544,7 +1600,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 [data-anchor="right"] .chat-body {
-  padding: 12px 84px 14px 16px;
+  padding: 12px var(--cuy-col, 84px) 14px 16px;
 }
 
 [data-anchor="right"] .drop-body {
@@ -1674,6 +1730,20 @@ input[type="range"]::-webkit-slider-thumb {
   user-select: text;
 }
 
+/* One block per agent in the Agents section: the name, its config, its buttons. */
+.agent-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--md-outline-variant);
+}
+
+.agent-block .row > label {
+  min-width: 92px;
+  color: var(--md-on-surface-variant);
+}
+
 .diff {
   font: 400 11px/1.5 var(--mono);
   background: var(--md-surface-container-lowest);
@@ -1780,26 +1850,14 @@ input[type="range"]::-webkit-slider-thumb {
   width: auto;
 }
 
-[data-anchor="left"] .who { padding: 0 12px 0 84px; }
-[data-anchor="right"] .who { padding: 0 84px 0 12px; }
-
-[data-anchor="left"] .ticker { margin: 6px 12px 0 84px; }
-[data-anchor="right"] .ticker { margin: 6px 84px 0 12px; }
-
-[data-anchor="left"] .int-card { padding: 10px 12px 0 84px; }
-[data-anchor="right"] .int-card { padding: 10px 84px 0 12px; }
-
 [data-anchor="left"] .int-head { padding-right: 12px; }
 [data-anchor="right"] .int-head { padding-right: 0; padding-left: 12px; }
 
 [data-anchor="left"] .int-stats { padding-right: 12px; }
 [data-anchor="right"] .int-stats { padding-right: 0; padding-left: 12px; }
 
-[data-anchor="left"] .chat-body { padding: 12px 12px 14px 84px; }
-[data-anchor="right"] .chat-body { padding: 12px 84px 14px 12px; }
+[data-anchor="left"] .chat-body { padding: 12px 12px 14px var(--cuy-col, 84px); }
+[data-anchor="right"] .chat-body { padding: 12px var(--cuy-col, 84px) 14px 12px; }
 
 [data-anchor="left"] .drop-body { padding-left: 84px; }
 [data-anchor="right"] .drop-body { padding-left: 0; padding-right: 84px; }
-
-[data-anchor="left"] .stack { padding: 4px 12px 4px 84px !important; }
-[data-anchor="right"] .stack { padding: 4px 84px 4px 12px !important; }
