@@ -30,6 +30,9 @@ const UPLOAD_VIEWS: ReadonlySet<IslandViewName> = new Set(["upload", "uploading"
 /** The agents panel: hidden entirely in "cuy only" mode. */
 const AGENT_VIEWS: ReadonlySet<IslandViewName> = new Set(["overview", "empty"]);
 
+/** Views that hold text fields, so the island has to take keyboard focus. */
+const FOCUS_VIEWS: ReadonlySet<IslandViewName> = new Set(["prompt", "settings"]);
+
 /** Seconds between the drop and the moment the progress bar starts filling. */
 const PRE_PROGRESS = USC.T_PROG_START - USC.T_DROP;
 
@@ -170,7 +173,6 @@ export class Island {
         void Bridge.saveSettings(State.settings);
         State.notify();
       },
-      openSettingsWindow: () => void Bridge.openSettingsWindow(),
       blip: () => Sound.play("blip"),
     };
 
@@ -893,15 +895,18 @@ export class Island {
       if (on) view.sync();
     }
 
-    // The chat is the only view with a text field, so it is the only time the
-    // island is allowed to take keyboard focus.
+    // Only views with text fields (chat, settings) make the island take
+    // keyboard focus.
     if (this.lastSyncedView !== State.view) {
-      const wasChat = this.lastSyncedView === "prompt";
+      const needsFocus = FOCUS_VIEWS.has(State.view);
+      const hadFocus = this.lastSyncedView != null && FOCUS_VIEWS.has(this.lastSyncedView);
       this.lastSyncedView = State.view;
-      if (State.view === "prompt") {
+      if (needsFocus) {
         void Bridge.focusWindow(true);
-        window.setTimeout(() => this.views.get("prompt")?.focus?.(), 120);
-      } else if (wasChat) {
+        if (State.view === "prompt") {
+          window.setTimeout(() => this.views.get("prompt")?.focus?.(), 120);
+        }
+      } else if (hadFocus) {
         void Bridge.focusWindow(false);
       }
     }
