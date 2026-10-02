@@ -248,6 +248,13 @@ function rr(x: CanvasRenderingContext2D, X: number, Y: number, W: number, H: num
   x.closePath();
 }
 
+/** Pear-shaped body: narrow crown, wide cheeks, rounded chin. `u` is y/hh. */
+function cheekWidth(u: number): number {
+  const crown = 1 - 0.2 * Math.pow(Math.max(0, -u), 1.3);
+  const cheeks = 1 + 0.09 * Math.exp(-((u - 0.3) ** 2) / 0.12);
+  return crown * cheeks;
+}
+
 function cuycoPath(hw: number, hh: number): Path2D {
   const n = 3.2;
   const p = new Path2D();
@@ -256,8 +263,8 @@ function cuycoPath(hw: number, hh: number): Path2D {
     const a = (i / steps) * 2 * Math.PI;
     const ca = Math.cos(a);
     const sa = Math.sin(a);
-    const px = hw * (ca < 0 ? -1 : 1) * Math.pow(Math.abs(ca), 2 / n);
     const py = hh * (sa < 0 ? -1 : 1) * Math.pow(Math.abs(sa), 2 / n);
+    const px = hw * (ca < 0 ? -1 : 1) * Math.pow(Math.abs(ca), 2 / n) * cheekWidth(py / hh);
     if (i === 0) p.moveTo(px, py);
     else p.lineTo(px, py);
   }
@@ -456,15 +463,15 @@ function drawCuyco(x: CanvasRenderingContext2D, p: Pose) {
   x.lineWidth = Math.max(0.6, hh * 0.03);
   x.lineCap = "round";
   for (const sd of [-1, 1] as const) {
-    const bx = nx + sd * hw * 0.12;
-    const by = ny + hh * 0.03;
+    const bx = nx + sd * hw * 0.3;
+    const by = ny + hh * 0.12;
     for (let i = -1; i <= 1; i++) {
-      const len = hw * (0.6 - Math.abs(i) * 0.08);
+      const len = hw * (0.34 - Math.abs(i) * 0.05);
       const tipX = bx + sd * len;
-      const tipY = by + i * hh * 0.2 + hh * 0.08;
+      const tipY = by + i * hh * 0.14 + hh * 0.02;
       x.beginPath();
       x.moveTo(bx, by);
-      x.quadraticCurveTo(bx + sd * len * 0.5, by + i * hh * 0.1 - hh * 0.05, tipX, tipY);
+      x.quadraticCurveTo(bx + sd * len * 0.5, by + i * hh * 0.05 - hh * 0.02, tipX, tipY);
       x.stroke();
     }
   }

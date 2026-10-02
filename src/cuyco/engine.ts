@@ -119,6 +119,13 @@ const EMOTE_EYE: Record<BotEmoteName, EyeShape> = {
 
 const now = () => performance.now() / 1000;
 
+/** Pear-shaped body: narrow crown, wide cheeks, rounded chin. `u` is y/ry. */
+function cheekWidth(u: number): number {
+  const crown = 1 - 0.2 * Math.pow(Math.max(0, -u), 1.3);
+  const cheeks = 1 + 0.09 * Math.exp(-((u - 0.3) ** 2) / 0.12);
+  return crown * cheeks;
+}
+
 export function hexToRGB(hex: string): RGB {
   const h = hex.replace("#", "");
   const v = parseInt(h, 16);
@@ -699,8 +706,8 @@ export class BotEngine {
       const a = (i / n) * Math.PI * 2;
       const ca = Math.cos(a);
       const sa = Math.sin(a);
-      const px0 = rx * (ca >= 0 ? Math.pow(ca, expN) : -Math.pow(-ca, expN));
       const py0 = ry * (sa >= 0 ? Math.pow(sa, expN) : -Math.pow(-sa, expN));
+      const px0 = rx * (ca >= 0 ? Math.pow(ca, expN) : -Math.pow(-ca, expN)) * cheekWidth(py0 / ry);
       let px = px0;
       let py = py0;
       if (m >= 0.005) {
@@ -979,15 +986,15 @@ export class BotEngine {
     x.lineWidth = Math.max(0.6, R * 0.028);
     x.lineCap = "round";
     for (const sd of [-1, 1]) {
-      const bx = nx + sd * R * 0.12;
-      const by = ny + R * 0.03;
+      const bx = nx + sd * R * 0.3;
+      const by = ny + R * 0.12;
       for (let i = -1; i <= 1; i++) {
-        const len = R * (0.7 - Math.abs(i) * 0.1) * cp;
+        const len = R * (0.4 - Math.abs(i) * 0.06) * cp;
         const tipX = bx + sd * len;
-        const tipY = by + i * R * 0.22 + R * 0.08;
+        const tipY = by + i * R * 0.16 + R * 0.02;
         x.beginPath();
         x.moveTo(bx, by);
-        x.quadraticCurveTo(bx + sd * len * 0.5, by + i * R * 0.1 - R * 0.06, tipX, tipY);
+        x.quadraticCurveTo(bx + sd * len * 0.5, by + i * R * 0.06 - R * 0.02, tipX, tipY);
         x.stroke();
       }
     }
