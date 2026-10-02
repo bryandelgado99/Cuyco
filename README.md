@@ -143,6 +143,12 @@ What changes on Linux:
   Unix socket at `$XDG_RUNTIME_DIR/cuyco.sock`.
 - **Keys** live in the Secret Service (GNOME Keyring, KWallet).
 
+## What's next
+
+Cuyco is an early fork and the visuals are still a first pass. The running list of
+what's left — character refinement, real sounds, the full Material 3 pass,
+packaging and media — lives in [TODO.md](TODO.md).
+
 ## Credits
 
 Cuyco is an independent fork inspired by **Coucou** by
