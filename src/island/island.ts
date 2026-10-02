@@ -797,11 +797,13 @@ export class Island {
     this.botSize.target = p.diameter / 0.6;
 
     const greetingActive = State.mode === "expanded" && State.view === "greeting";
-    // The drop canvas draws its own Cuyco; two of them would overlap.
-    const visible = p.opacity > 0 && !greetingActive && !this.uploadActive;
+    // The drop canvas draws its own Cuyco; two of them would overlap. The
+    // settings panel uses the full width, so the cuy would sit on top of it.
+    const settingsOpen = State.mode === "expanded" && State.view === "settings";
+    const visible = p.opacity > 0 && !greetingActive && !this.uploadActive && !settingsOpen;
     this.botCanvas.style.opacity = visible ? "1" : "0";
 
-    if (State.mode === "expanded" && State.view !== "uploading" && !greetingActive && !this.uploadActive) {
+    if (State.mode === "expanded" && State.view !== "uploading" && !settingsOpen && !greetingActive && !this.uploadActive) {
       const d = p.diameter;
       const color = botGlowColor(State.effectiveState);
       this.botGlow.style.display = "block";
