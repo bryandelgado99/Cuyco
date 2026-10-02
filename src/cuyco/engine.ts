@@ -64,6 +64,7 @@ const EYE_W = 0.25;
 const EYE_H = 0.27;
 const EYE_SP = 0.37;
 const EYE_P = -0.12;
+const NOSE_P = -0.478;
 const BASE_TOP: RGB = [0.965, 0.91, 0.824]; // #F6E8D2 — cuy cream
 const BASE_BOTTOM: RGB = [0.796, 0.647, 0.431]; // #CBA66E — cuy caramel
 const INK = "rgb(26,20,18)"; // #1A1412
@@ -713,16 +714,16 @@ export class BotEngine {
     return p;
   }
 
-  /** Two small rounded ears, drawn behind the body so they poke out on top. */
+  /** Two curved ears, drawn behind the body so they poke out on top. */
   private drawEars(x: CanvasRenderingContext2D, R: number, rx: number, ry: number) {
-    const earW = R * 0.3;
-    const earH = R * 0.34;
+    const w = R * 0.3;
+    const h = R * 0.44;
     for (const sd of [-1, 1]) {
       x.save();
       x.translate(sd * rx * 0.52, -ry * 0.78);
       x.rotate(sd * 0.42);
 
-      const g = x.createLinearGradient(0, -earH, 0, earH);
+      const g = x.createLinearGradient(0, -h, 0, h);
       if (this.bodyColor) {
         g.addColorStop(0, rgba(mix3(this.bodyColor, [1, 1, 1], 0.2)));
         g.addColorStop(1, rgba(mix3(this.bodyColor, [0, 0, 0], 0.12)));
@@ -731,12 +732,18 @@ export class BotEngine {
         g.addColorStop(1, rgba(BASE_BOTTOM));
       }
       x.beginPath();
-      x.ellipse(0, 0, earW, earH, 0, 0, Math.PI * 2);
+      x.moveTo(-w * 0.28, h * 0.5);
+      x.bezierCurveTo(-w * 1.15, h * 0.08, -w * 0.95, -h * 0.72, -w * 0.05, -h * 0.92);
+      x.bezierCurveTo(w * 0.8, -h * 1.02, w * 0.9, -h * 0.05, w * 0.32, h * 0.5);
+      x.closePath();
       x.fillStyle = g;
       x.fill();
 
       x.beginPath();
-      x.ellipse(0, earH * 0.12, earW * 0.5, earH * 0.55, 0, 0, Math.PI * 2);
+      x.moveTo(-w * 0.1, h * 0.3);
+      x.bezierCurveTo(-w * 0.62, 0, -w * 0.5, -h * 0.5, 0, -h * 0.6);
+      x.bezierCurveTo(w * 0.45, -h * 0.64, w * 0.5, -h * 0.02, w * 0.16, h * 0.3);
+      x.closePath();
       x.fillStyle = "rgba(214,146,152,0.5)";
       x.fill();
 
@@ -929,8 +936,10 @@ export class BotEngine {
   private drawNose(x: CanvasRenderingContext2D, body: Path2D, R: number, rx: number, ry: number) {
     const a = 1 - this.morph;
     if (a <= 0.01) return;
-    const nx = Math.sin(this.yaw) * rx * 0.07;
-    const ny = ry * 0.46;
+    const nosePitch = NOSE_P + this.pitch + this.roll;
+    const cp = Math.cos(nosePitch);
+    const nx = Math.sin(this.yaw) * cp * rx;
+    const ny = -Math.sin(nosePitch) * ry;
     const w = R * 0.22;
     const h = R * 0.16;
 
