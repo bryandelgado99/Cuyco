@@ -609,33 +609,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cuyco"
-version = "0.1.1"
-dependencies = [
- "gtk",
- "keyring",
- "libc",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-autostart",
- "tauri-plugin-single-instance",
- "tokio",
- "windows 0.61.3",
-]
-
-[[package]]
-name = "cuyco-hook"
-version = "0.1.1"
-dependencies = [
- "libc",
- "serde_json",
- "windows 0.61.3",
-]
-
-[[package]]
 name = "cpufeatures"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -715,6 +688,33 @@ name = "ctor"
 version = "1.0.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "914a755b7c2d4af2bdcff7ce1739e2db9a1b81a9b07123d8015786ae03c0980d"
+
+[[package]]
+name = "cuyco"
+version = "0.1.1"
+dependencies = [
+ "gtk",
+ "keyring",
+ "libc",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-autostart",
+ "tauri-plugin-single-instance",
+ "tokio",
+ "windows 0.61.3",
+]
+
+[[package]]
+name = "cuyco-hook"
+version = "0.1.1"
+dependencies = [
+ "libc",
+ "serde_json",
+ "windows 0.61.3",
+]
 
 [[package]]
 name = "darling"
