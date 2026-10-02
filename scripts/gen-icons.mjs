@@ -17,14 +17,24 @@ const BASE_TOP = [246, 232, 210]; // #F6E8D2 — cuy cream
 const BASE_BOTTOM = [203, 166, 110]; // #CBA66E — cuy caramel
 const EAR = [197, 160, 112]; // #C5A070 — outer ear
 const INK = [26, 20, 18]; // #1A1412
+const WHISKER = [70, 52, 42]; // warm brown whiskers
 const RIM = [0, 0, 0];
 
 const SS = 4; // supersampling factor
 
-/** Superellipse (exponent 2.7) test in body-local coordinates. */
+/** Pear-shaped body: narrow crown, wide cheeks, rounded chin. `u` is y/ry. */
+function cheekWidth(u) {
+  const crown = 1 - 0.2 * Math.pow(Math.max(0, -u), 1.3);
+  const cheeks = 1 + 0.09 * Math.exp(-((u - 0.3) ** 2) / 0.12);
+  return crown * cheeks;
+}
+
 function insideBody(x, y, rx, ry) {
   const n = 2.7;
-  return Math.pow(Math.abs(x / rx), n) + Math.pow(Math.abs(y / ry), n) <= 1;
+  const ay = Math.abs(y) / ry;
+  if (ay >= 1) return false;
+  const half = rx * Math.pow(1 - Math.pow(ay, n), 1 / n) * cheekWidth(y / ry);
+  return Math.abs(x) <= half;
 }
 
 function insidePill(x, y, w, h) {
@@ -45,6 +55,44 @@ function insideEllipse(x, y, ecx, ecy, erx, ery, rot) {
   const lx = dx * c - dy * s;
   const ly = dx * s + dy * c;
   return (lx * lx) / (erx * erx) + (ly * ly) / (ery * ery) <= 1;
+}
+
+function dist(x, y, ax, ay) {
+  return Math.hypot(x - ax, y - ay);
+}
+
+/** Distance from a point to a segment, for the whiskers. */
+function distToSegment(x, y, ax, ay, bx, by) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / len2));
+  return dist(x, y, ax + t * dx, ay + t * dy);
+}
+
+/** Point-in-triangle, by edge signs. */
+function insideTri(x, y, a, b, c) {
+  const s = (p, q) => (x - q[0]) * (p[1] - q[1]) - (p[0] - q[0]) * (y - q[1]);
+  const d1 = s(a, b);
+  const d2 = s(b, c);
+  const d3 = s(c, a);
+  const neg = d1 < 0 || d2 < 0 || d3 < 0;
+  const pos = d1 > 0 || d2 > 0 || d3 > 0;
+  return !(neg && pos);
+}
+
+/** Rounded downward triangle (guinea-pig nose), body-local. */
+function insideNose(x, y, nx, ny, w, h) {
+  const a = [nx - w / 2, ny - h * 0.5];
+  const b = [nx + w / 2, ny - h * 0.5];
+  const c = [nx, ny + h * 0.5];
+  const r = w * 0.28;
+  return (
+    insideTri(x, y, a, b, c) ||
+    dist(x, y, ...a) <= r ||
+    dist(x, y, ...b) <= r ||
+    dist(x, y, ...c) <= r
+  );
 }
 
 function renderCuyco(size) {
@@ -74,12 +122,30 @@ function renderCuyco(size) {
   const ew = R * 0.25 * fx;
   const eh = R * 0.27 * fy;
 
+  // Nose, and (only where they can read) whiskers — same geometry as BotEngine.
+  const noseW = R * 0.22;
+  const noseH = R * 0.16;
+  const noseNy = ry * 0.46;
+  const whiskers = [];
+  if (size >= 96) {
+    for (const sd of [-1, 1]) {
+      const bx = sd * R * 0.3;
+      const by = noseNy + R * 0.12;
+      for (let i = -1; i <= 1; i++) {
+        const len = R * (0.4 - Math.abs(i) * 0.06);
+        whiskers.push([bx, by, bx + sd * len, by + i * R * 0.16 + R * 0.02]);
+      }
+    }
+  }
+
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       let bodyHits = 0;
       let earHits = 0;
       let rimHits = 0;
       let eyeHits = 0;
+      let noseHits = 0;
+      let whiskerHits = 0;
       for (let sy = 0; sy < SS; sy++) {
         for (let sx = 0; sx < SS; sx++) {
           const px0 = x + (sx + 0.5) / SS - cx;
@@ -100,6 +166,15 @@ function renderCuyco(size) {
           ) {
             eyeHits++;
           }
+          if (insideNose(px0, py0, 0, noseNy, noseW, noseH)) noseHits++;
+          if (whiskers.length) {
+            for (const wk of whiskers) {
+              if (distToSegment(px0, py0, wk[0], wk[1], wk[2], wk[3]) <= R * 0.022) {
+                whiskerHits++;
+                break;
+              }
+            }
+          }
         }
       }
       if (rimHits === 0) continue;
@@ -109,6 +184,8 @@ function renderCuyco(size) {
       const bodyA = bodyHits / total;
       const earA = earHits / total;
       const eyeA = eyeHits / total;
+      const noseA = noseHits / total;
+      const whiskerA = whiskerHits / total;
 
       // Body gradient: top-right → bottom-left, like the Canvas gradient.
       const t = Math.min(1, Math.max(0, ((x - cx) * -0.6 + (y - cy) * 0.8) / (2 * ry) + 0.5));
@@ -125,6 +202,13 @@ function renderCuyco(size) {
       }
       if (eyeA > 0) {
         col = col.map((c, i) => c * (1 - eyeA) + INK[i] * eyeA);
+      }
+      if (noseA > 0) {
+        col = col.map((c, i) => c * (1 - noseA) + INK[i] * noseA);
+      }
+      if (whiskerA > 0) {
+        const wA = whiskerA * 0.5;
+        col = col.map((c, i) => c * (1 - wA) + WHISKER[i] * wA);
       }
 
       const o = (y * size + x) * 4;
