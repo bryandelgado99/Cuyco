@@ -6,6 +6,7 @@ import "./settings.css";
 import { Bridge, onEvent, type HookStatus } from "../core/bridge";
 import { DEFAULT_SETTINGS, type Settings } from "../core/state";
 import { applyTheme } from "../core/theme";
+import { installShapeProperties } from "../shape/shapes";
 import { h, clear } from "../views/dom";
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
@@ -444,6 +445,7 @@ async function main() {
     version = boot.version;
   }
   applyTheme(settings.theme);
+  installShapeProperties();
   const status = (await Bridge.hooksStatus()) ?? {
     installed: false, settingsPath: "", hookPath: "", hookReady: false,
   };

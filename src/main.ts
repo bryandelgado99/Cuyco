@@ -3,6 +3,7 @@
 import "./style.css";
 import { Bridge, IS_TAURI, onEvent } from "./core/bridge";
 import { applyTheme } from "./core/theme";
+import { installShapeProperties } from "./shape/shapes";
 import { Sound } from "./core/sound";
 import { State, type Settings } from "./core/state";
 import { Island } from "./island/island";
@@ -23,6 +24,7 @@ async function main() {
   }
   island.applySettings();
   applyTheme(State.settings.theme);
+  installShapeProperties();
   State.loadIntegrationTasks();
   if (boot && !boot.cursorPoll) island.followPageCursor();
 

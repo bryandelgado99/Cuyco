@@ -26,6 +26,8 @@
   --md-dur-short: 150ms;
   --md-dur-medium: 300ms;
   --md-dur-long: 500ms;
+  /* Material shape morph (M3E "slow effects" spring). */
+  --md-shape-transition: clip-path 200ms cubic-bezier(0.34, 0.88, 0.34, 1);
 
   /* ── State layers (M3) ───────────────────────────────────────────────────── */
   --md-state-hover: 0.08;

@@ -346,6 +346,12 @@ body {
   display: grid;
   place-items: center;
   cursor: pointer;
+  clip-path: var(--md-shape-circle);
+  transition: background var(--md-dur-short) var(--md-ease-decel), var(--md-shape-transition);
+}
+
+.icon-btn:active {
+  clip-path: var(--md-shape-soft-burst);
 }
 
 /* ── State layers, focus and disabled (M3) ──────────────────────────────── */
@@ -407,6 +413,19 @@ body {
 button:disabled {
   opacity: 0.38;
   pointer-events: none;
+}
+
+/* ── Material shapes ────────────────────────────────────────────────────────
+   Any element can wear a Material shape: set --shape (and optionally
+   --shape-active) to a token from src/shape/shapes.ts, e.g.
+   --shape: var(--md-shape-cookie). The morph runs on the M3E spring. */
+.shape {
+  clip-path: var(--shape, none);
+  transition: var(--md-shape-transition);
+}
+
+.shape:active {
+  clip-path: var(--shape-active, var(--shape, none));
 }
 
 /* ── Overview ───────────────────────────────────────────────────────────── */
@@ -929,13 +948,16 @@ input[type="range"]::-webkit-slider-thumb {
   display: grid;
   place-items: center;
   cursor: pointer;
+  clip-path: var(--md-shape-circle);
   transition: border-radius var(--md-dur-short) var(--md-ease-pressed),
-    transform var(--md-dur-short) var(--md-ease-pressed);
+    transform var(--md-dur-short) var(--md-ease-pressed),
+    var(--md-shape-transition);
 }
 
 .send-btn:active {
   transform: scale(0.94);
   border-radius: var(--md-shape-m);
+  clip-path: var(--md-shape-sunny);
 }
 
 /* ── Drop zone ──────────────────────────────────────────────────────────── */
