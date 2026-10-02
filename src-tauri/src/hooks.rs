@@ -29,8 +29,18 @@ pub struct Agent {
     /// agent's config. PermissionRequest waits for a human, so it gets the
     /// decision timeout + 10 s.
     pub events: &'static [(&'static str, u64)],
-    /// The agent's own config file.
+    pub kind: Kind,
+    /// Where this agent's hooks are written.
     pub config: fn() -> PathBuf,
+}
+
+/// How an agent's hooks are installed.
+pub enum Kind {
+    /// A `hooks` object inside the agent's own settings JSON.
+    JsonHooks,
+    /// Codex reads `hooks.json` only when `features.hooks` is on, so installing
+    /// touches two files: the hooks themselves, and that one flag in config.toml.
+    CodexHooks,
 }
 
 /// Claude Code's events: the full vocabulary, with permission requests on the
@@ -59,12 +69,28 @@ const COMMAND_CODE_EVENTS: &[(&str, u64)] = &[
     ("Stop", 10),
 ];
 
+/// Codex speaks the same event vocabulary as Claude Code; these are the ones the
+/// island reacts to. PermissionRequest is left out on purpose: the relay answers
+/// with Claude's output shape, and until Codex's is confirmed a request it cannot
+/// read would just hang, so Codex keeps asking in the terminal.
+const CODEX_EVENTS: &[(&str, u64)] = &[
+    ("SessionStart", 10),
+    ("UserPromptSubmit", 10),
+    ("PreToolUse", 10),
+    ("PostToolUse", 10),
+    ("Stop", 10),
+    ("SessionEnd", 10),
+    ("SubagentStart", 10),
+    ("SubagentStop", 10),
+];
+
 pub const AGENTS: &[Agent] = &[
     Agent {
         id: "claude",
         name: "Claude Code",
         tag: None,
         events: CLAUDE_EVENTS,
+        kind: Kind::JsonHooks,
         config: claude_settings_path,
     },
     Agent {
@@ -72,7 +98,16 @@ pub const AGENTS: &[Agent] = &[
         name: "Command Code",
         tag: Some("commandcode"),
         events: COMMAND_CODE_EVENTS,
+        kind: Kind::JsonHooks,
         config: commandcode_settings_path,
+    },
+    Agent {
+        id: "codex",
+        name: "Codex",
+        tag: Some("codex"),
+        events: CODEX_EVENTS,
+        kind: Kind::CodexHooks,
+        config: codex_hooks_path,
     },
 ];
 
@@ -90,11 +125,21 @@ pub struct HookStatus {
     pub hook_ready: bool,
 }
 
+/// One file an install (or uninstall) rewrites, with the diff to show for it.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HookFileDiff {
+    pub path: String,
+    pub diff: String,
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HookPreview {
-    pub diff: String,
-    pub backup: String,
+    pub files: Vec<HookFileDiff>,
+    /// One dated backup path per file, in the same order.
+    pub backups: Vec<String>,
+    /// The agent's hooks file, for the panel's header.
     pub settings_path: String,
     /// Identifies the bytes this diff was computed from; handed back to `write`
     /// so we only ever apply what the user actually looked at.
@@ -115,6 +160,16 @@ fn claude_settings_path() -> PathBuf {
 /// everywhere else.
 fn commandcode_settings_path() -> PathBuf {
     platform::home_dir().join(".commandcode").join("settings.json")
+}
+
+/// Codex keeps its own hooks in `$CODEX_HOME/hooks.json` (CODEX_HOME defaults to
+/// ~/.codex), separate from config.toml.
+fn codex_hooks_path() -> PathBuf {
+    platform::home_dir().join(".codex").join("hooks.json")
+}
+
+fn codex_config_path() -> PathBuf {
+    platform::home_dir().join(".codex").join("config.toml")
 }
 
 /// The agent's config path.
@@ -306,13 +361,15 @@ fn stamp() -> String {
     )
 }
 
-fn backup_path(agent: &Agent) -> PathBuf {
-    let p = settings_path(agent);
-    let name = p
+/// `<name>.bak-<stamp>` beside the file it backs up. Down to the second:
+/// installing then uninstalling in the same minute must not quietly overwrite
+/// the first backup.
+fn backup_path(path: &Path) -> PathBuf {
+    let name = path
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_else(|| "settings.json".into());
-    p.with_file_name(format!("{name}.bak-{}", stamp()))
+        .unwrap_or_else(|| "settings".into());
+    path.with_file_name(format!("{name}.bak-{}", stamp()))
 }
 
 /// Identifies the exact bytes a preview was computed from. FNV-1a is plenty:
@@ -326,11 +383,114 @@ fn fingerprint(bytes: &[u8]) -> String {
     format!("{hash:016x}")
 }
 
-fn current_fingerprint(agent: &Agent) -> String {
-    match std::fs::read(settings_path(agent)) {
-        Ok(bytes) => fingerprint(&bytes),
-        Err(_) => fingerprint(b""),
+/// One file an install (or uninstall) rewrites.
+struct Change {
+    path: PathBuf,
+    /// The bytes as found; empty when the file does not exist yet.
+    before: Vec<u8>,
+    /// What the file should hold afterwards.
+    after: String,
+}
+
+/// Identifies every file a preview read, so `write` can refuse a plan built from
+/// configs that have moved on since the user looked at the diff.
+fn fingerprint_of(plan: &[Change]) -> String {
+    let mut bytes = Vec::new();
+    for c in plan {
+        bytes.extend_from_slice(c.path.to_string_lossy().as_bytes());
+        bytes.push(0);
+        bytes.extend_from_slice(&c.before);
+        bytes.push(0);
     }
+    fingerprint(&bytes)
+}
+
+/// The bytes of `path`, or nothing when it is not there. A file we cannot read is
+/// an error, never "empty": writing over a locked config would lose it.
+fn read_optional(path: &Path) -> Result<Vec<u8>, String> {
+    match std::fs::read(path) {
+        Ok(bytes) => Ok(bytes),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(err) => Err(format!("Can't read {}: {err}", path.display())),
+    }
+}
+
+/// The agent's hooks file with this install (or uninstall) applied.
+fn json_change(path: PathBuf, agent: &Agent, install: bool) -> Result<Change, String> {
+    let before = read_optional(&path)?;
+    let current = parse_settings(&before, &path.display().to_string())?;
+    let next = if install {
+        merged(&current, agent)
+    } else {
+        without_ours(&current, agent)
+    };
+    let mut after = pretty(&next);
+    after.push('\n');
+    Ok(Change { path, before, after })
+}
+
+/// Every file installing (or uninstalling) this agent rewrites.
+fn changes(agent: &Agent, install: bool) -> Result<Vec<Change>, String> {
+    let mut plan = vec![json_change(settings_path(agent), agent, install)?];
+    // Codex loads hooks.json only when features.hooks is on, so the install also
+    // flips that flag. Uninstall leaves config.toml alone: we cannot tell our
+    // flag from one the user set, and a hooks.json without our entries is inert.
+    if install && matches!(agent.kind, Kind::CodexHooks) {
+        let path = codex_config_path();
+        let before = read_optional(&path)?;
+        let text = String::from_utf8_lossy(&before).to_string();
+        let after = codex_config_with_hooks(&text);
+        if after != text {
+            plan.push(Change { path, before, after });
+        }
+    }
+    Ok(plan)
+}
+
+/// config.toml with `features.hooks = true`, edited line by line so comments,
+/// ordering and formatting all survive. Cuyco writes this one key and nothing
+/// else, so it does not need to understand the rest of the file.
+fn codex_config_with_hooks(text: &str) -> String {
+    const HEADER: &str = "[features]";
+    const KEY: &str = "hooks";
+    const DOTTED: &str = "features.hooks";
+    let mut lines: Vec<String> = text.lines().map(str::to_string).collect();
+    let mut in_features = false;
+
+    for (i, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') {
+            in_features = trimmed == HEADER;
+            continue;
+        }
+        // A comment's "# hooks = true" yields "# hooks", which matches nothing.
+        let name = trimmed.split('=').next().unwrap_or("").trim();
+        if (in_features && name == KEY) || name == DOTTED {
+            lines[i] = format!("{name} = true");
+            return ending(lines);
+        }
+    }
+
+    // Not there yet: inside an existing [features], or as a table of its own.
+    if let Some(i) = lines.iter().position(|l| l.trim() == HEADER) {
+        lines.insert(i + 1, format!("{KEY} = true"));
+    } else {
+        if !lines.is_empty() {
+            lines.push(String::new());
+        }
+        lines.push(HEADER.to_string());
+        lines.push(format!("{KEY} = true"));
+    }
+    ending(lines)
+}
+
+/// `lines` as a TOML file, always with a closing newline.
+fn ending(lines: Vec<String>) -> String {
+    let mut out = lines.join("\n");
+    if !out.is_empty() {
+        out.push('\n');
+    }
+    out
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -374,63 +534,78 @@ pub fn installed_agents() -> Vec<String> {
 }
 
 pub fn preview(agent: &Agent, install: bool) -> Result<HookPreview, String> {
-    let current = read_settings(agent)?;
-    let next = if install {
-        merged(&current, agent)
-    } else {
-        without_ours(&current, agent)
-    };
+    let plan = changes(agent, install)?;
     Ok(HookPreview {
-        diff: unified_diff(&pretty(&current), &pretty(&next)),
-        backup: backup_path(agent).to_string_lossy().to_string(),
-        settings_path: settings_path(agent).to_string_lossy().to_string(),
-        fingerprint: current_fingerprint(agent),
+        files: plan
+            .iter()
+            .map(|c| HookFileDiff {
+                path: c.path.to_string_lossy().to_string(),
+                diff: unified_diff(&String::from_utf8_lossy(&c.before), &c.after),
+            })
+            .collect(),
+        backups: plan
+            .iter()
+            .map(|c| backup_path(&c.path).to_string_lossy().to_string())
+            .collect(),
+        settings_path: plan
+            .first()
+            .map(|c| c.path.to_string_lossy().to_string())
+            .unwrap_or_default(),
+        fingerprint: fingerprint_of(&plan),
     })
 }
 
-/// Writes the merged (or cleaned) settings after taking a dated backup.
+/// Writes every file the plan touches, after taking a dated backup of each.
 ///
-/// `fingerprint` is the one the preview was computed from. If the file changed
+/// `fingerprint` is the one the preview was computed from. If any file changed
 /// in between — another tool, another window, the user's own editor — we stop
 /// and make them look at a fresh diff, because the only thing worse than not
 /// installing the hooks is silently reverting somebody else's edit.
-pub fn write(agent: &Agent, install: bool, fingerprint: &str) -> Result<String, String> {
-    let path = settings_path(agent);
-    let dir = path.parent().unwrap_or(Path::new("."));
-    std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
-
-    // Read before the backup: an unreadable file must abort before we touch
-    // anything at all.
-    let current = read_settings(agent)?;
-    if current_fingerprint(agent) != fingerprint {
+pub fn write(agent: &Agent, install: bool, fingerprint: &str) -> Result<Vec<String>, String> {
+    let plan = changes(agent, install)?;
+    if fingerprint_of(&plan) != fingerprint {
+        let first = plan
+            .first()
+            .map(|c| c.path.display().to_string())
+            .unwrap_or_default();
         return Err(format!(
-            "{} changed since the preview. Nothing was written — review the new diff.",
-            path.display()
+            "{first} changed since the preview. Nothing was written — review the new diff."
         ));
     }
 
-    let backup = backup_path(agent);
-    if path.exists() {
-        std::fs::copy(&path, &backup).map_err(|e| format!("backup failed: {e}"))?;
+    let mut written = Vec::new();
+    for change in &plan {
+        let backup = backup_path(&change.path);
+        write_one(change, &backup)?;
+        written.push(backup.to_string_lossy().to_string());
+    }
+    Ok(written)
+}
+
+/// Backs up the file (when it exists) and writes `change.after` beside it, then
+/// renames over it: a crash or a full disk leaves the original intact rather
+/// than half a file.
+fn write_one(change: &Change, backup: &Path) -> Result<(), String> {
+    let dir = change.path.parent().unwrap_or(Path::new("."));
+    std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+
+    if change.path.exists() {
+        std::fs::copy(&change.path, backup).map_err(|e| format!("backup failed: {e}"))?;
     }
 
-    let next = if install {
-        merged(&current, agent)
-    } else {
-        without_ours(&current, agent)
-    };
-    let mut text = pretty(&next);
-    text.push('\n');
-
-    // A dotfiles setup often makes settings.json a symlink: write to the file it
-    // points at, so the link survives the rename below.
+    // A dotfiles setup often makes these files symlinks: write to the file they
+    // point at, so the link survives the rename below.
     #[cfg(unix)]
-    let path = std::fs::canonicalize(&path).unwrap_or(path);
+    let path = std::fs::canonicalize(&change.path).unwrap_or_else(|_| change.path.clone());
+    #[cfg(not(unix))]
+    let path = change.path.clone();
 
-    // Write beside the target and rename over it: a crash or a full disk leaves
-    // the original settings.json intact rather than half a file.
-    let temp = path.with_extension(format!("json.cuyco-{}", std::process::id()));
-    if let Err(err) = write_like(&temp, &path, text.as_bytes()) {
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "settings".into());
+    let temp = path.with_file_name(format!("{name}.cuyco-{}", std::process::id()));
+    if let Err(err) = write_like(&temp, &path, change.after.as_bytes()) {
         let _ = std::fs::remove_file(&temp);
         return Err(format!("write failed: {err}"));
     }
@@ -438,7 +613,7 @@ pub fn write(agent: &Agent, install: bool, fingerprint: &str) -> Result<String, 
         let _ = std::fs::remove_file(&temp);
         return Err(format!("write failed: {err}"));
     }
-    Ok(backup.to_string_lossy().to_string())
+    Ok(())
 }
 
 /// Writes `bytes` to `temp`, which is about to replace `original`.
@@ -637,10 +812,17 @@ mod tests {
         agent("claude").expect("claude is always registered")
     }
 
-    /// A stand-in for an agent that has not been added yet, so the registry's
-    /// per-agent matching can be tested before Command Code/Codex land.
+    /// A stand-in agent, so the per-agent command matching can be tested without
+    /// depending on which agents happen to be registered.
     fn tagged(id: &'static str, tag: &'static str) -> Agent {
-        Agent { id, name: id, tag: Some(tag), events: &[], config: claude_settings_path }
+        Agent {
+            id,
+            name: id,
+            tag: Some(tag),
+            events: &[],
+            kind: Kind::JsonHooks,
+            config: claude_settings_path,
+        }
     }
 
     #[test]
@@ -659,7 +841,7 @@ mod tests {
     #[test]
     fn the_registry_covers_every_agent_we_ship() {
         let ids: Vec<&str> = AGENTS.iter().map(|a| a.id).collect();
-        assert_eq!(ids, ["claude", "commandcode"]);
+        assert_eq!(ids, ["claude", "commandcode", "codex"]);
         // Claude Code is the only untagged entry: every other agent must carry a
         // tag, or its entries and Claude's would be indistinguishable.
         assert_eq!(AGENTS.iter().filter(|a| a.tag.is_none()).count(), 1);
@@ -667,6 +849,26 @@ mod tests {
         for a in AGENTS {
             assert!(settings_path(a).starts_with(platform::home_dir()), "{}", a.id);
         }
+    }
+
+    #[test]
+    fn codex_gains_its_flag_once_and_keeps_the_rest_of_the_file() {
+        // No [features] table: one is appended, and the existing config stays.
+        let added = codex_config_with_hooks("model = \"gpt\"\n");
+        assert!(added.starts_with("model = \"gpt\""));
+        assert!(added.contains("[features]\nhooks = true"));
+        // Running it again rewrites the same line instead of adding a second.
+        assert_eq!(codex_config_with_hooks(&added), added);
+        assert_eq!(added.matches("hooks = true").count(), 1);
+        // An existing table gets the key right under its header.
+        let in_table = codex_config_with_hooks("[features]\nmemories = true\n");
+        assert!(in_table.contains("[features]\nhooks = true\nmemories = true"));
+        // A value the user set is turned on rather than duplicated.
+        assert_eq!(codex_config_with_hooks("[features]\nhooks = false\n"), "[features]\nhooks = true\n");
+        // A commented-out key is not mistaken for a real one.
+        let commented = codex_config_with_hooks("# hooks = true\n");
+        assert!(commented.contains("\n[features]\nhooks = true"));
+        assert!(commented.starts_with("# hooks = true"));
     }
 
     #[test]
@@ -799,11 +1001,12 @@ mod tests {
 
         // Install.
         let plan = preview(claude(), true).expect("a BOM must not stop the preview");
-        assert!(plan.diff.contains("cuyco-hook"), "the diff must show what changes");
+        assert!(plan.files[0].diff.contains("cuyco-hook"), "the diff must show what changes");
         let backup = write(claude(), true, &plan.fingerprint).expect("install should succeed");
+        assert_eq!(backup.len(), 1);
 
         // The backup holds the original bytes, BOM and all.
-        assert_eq!(std::fs::read(&backup).unwrap(), bytes);
+        assert_eq!(std::fs::read(&backup[0]).unwrap(), bytes);
 
         // Everything else survived, and so did the other tool's hook.
         let after: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
@@ -827,6 +1030,26 @@ mod tests {
         assert!(preview(claude(), true).is_err());
         assert!(write(claude(), true, "whatever").is_err());
         assert_eq!(std::fs::read(&path).unwrap(), b"{ broken");
+
+        // Codex: its hooks.json plus the one flag in config.toml, written together.
+        let codex = agent("codex").expect("codex is always registered");
+        let plan = changes(codex, true).unwrap();
+        assert_eq!(plan.len(), 2, "codex installs its hooks and flips features.hooks");
+        assert_eq!(plan[0].path, codex_hooks_path());
+        assert_eq!(plan[1].path, codex_config_path());
+        assert_eq!(write(codex, true, &fingerprint_of(&plan)).unwrap().len(), 2);
+        let hooks: Value =
+            serde_json::from_slice(&std::fs::read(codex_hooks_path()).unwrap()).unwrap();
+        assert!(hooks["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+            .as_str()
+            .unwrap()
+            .contains("--agent codex"));
+        assert!(std::fs::read_to_string(codex_config_path()).unwrap().contains("hooks = true"));
+        assert!(status(codex).installed);
+        // A second install only rewrites the hooks: the flag is already on.
+        assert_eq!(changes(codex, true).unwrap().len(), 1);
+        // Uninstall cleans the hooks and leaves the flag alone.
+        assert_eq!(changes(codex, false).unwrap().len(), 1);
 
         let _ = std::fs::remove_dir_all(&tmp);
     }

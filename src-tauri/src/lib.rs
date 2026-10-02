@@ -238,7 +238,7 @@ fn hooks_apply(
     agent: String,
     install: bool,
     fingerprint: String,
-) -> Result<String, String> {
+) -> Result<Vec<String>, String> {
     let agent = agent_of(&agent)?;
     // The fingerprint comes from the preview the user actually looked at, so a
     // settings.json that changed in between is refused rather than overwritten.

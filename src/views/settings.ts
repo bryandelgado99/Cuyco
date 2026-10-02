@@ -352,16 +352,24 @@ function agentsPanel(): { body: HTMLElement; status: HTMLElement; sync: () => vo
       }
       if (!preview) return;
       clear(el);
-      el.append(
+      const shown: HTMLElement[] = [
         h("div", {
           class: "hint",
           text: install
-            ? `This is exactly what will change in ${s.settingsPath}. Your own hooks are left untouched.`
+            ? `This is exactly what will change for ${s.name}. Your own hooks are left untouched.`
             : "This removes Cuyco's entries only. Your own hooks are left untouched.",
         }),
-        renderDiff(preview.diff),
-        h("div", { class: "row" }, h("span", { class: "path", text: `Backup → ${preview.backup}` })),
-      );
+      ];
+      // Codex needs two files (its hooks and one feature flag), so the diff is a
+      // list rather than a single blob.
+      for (const file of preview.files) {
+        shown.push(h("div", { class: "row" }, h("label", { text: "File" }), h("span", { class: "path", text: file.path })));
+        shown.push(renderDiff(file.diff));
+      }
+      if (preview.backups.length) {
+        shown.push(h("div", { class: "row" }, h("span", { class: "path", text: `Backups → ${preview.backups.join(", ")}` })));
+      }
+      el.append(...shown);
       const confirm = h("button", {
         class: install ? "primary" : "danger",
         text: install ? "Back up and write" : "Back up and remove",
@@ -369,11 +377,12 @@ function agentsPanel(): { body: HTMLElement; status: HTMLElement; sync: () => vo
       confirm.addEventListener("click", async () => {
         (confirm as HTMLButtonElement).disabled = true;
         try {
-          const backup = await Bridge.hooksApply(s.id, install, preview!.fingerprint);
+          const backups = await Bridge.hooksApply(s.id, install, preview!.fingerprint);
           clear(el);
+          const saved = backups.length ? ` Previous settings saved as ${backups.join(", ")}.` : "";
           el.append(h("div", {
             class: "notice ok",
-            text: `Done. Previous settings saved as ${backup}. Open a new ${s.name} session to pick the hooks up.`,
+            text: `Done.${saved} Open a new ${s.name} session to pick the hooks up.`,
           }));
           window.setTimeout(() => void refresh(), 2600);
         } catch (err) {

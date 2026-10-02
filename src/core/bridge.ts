@@ -68,10 +68,11 @@ export const Bridge = {
     callOrThrow<HookPreview>("hooks_preview", { agent, install }),
   /**
    * Writes that agent's config — only ever after an explicit click, and only
-   * when the file still matches the preview the user looked at.
+   * when the file still matches the preview the user looked at. Returns the
+   * dated backup paths, one per file written.
    */
   hooksApply: (agent: string, install: boolean, fingerprint: string) =>
-    callOrThrow<string>("hooks_apply", { agent, install, fingerprint }),
+    callOrThrow<string[]>("hooks_apply", { agent, install, fingerprint }),
 
   approvalDecision: (requestId: string, decision: "allow" | "deny") =>
     call<void>("approval_decision", { requestId, decision }),
@@ -127,9 +128,16 @@ export interface HookStatus {
   hookReady: boolean;
 }
 
-export interface HookPreview {
+/** One file an install rewrites, with the diff to show for it. */
+export interface HookFileDiff {
+  path: string;
   diff: string;
-  backup: string;
+}
+
+export interface HookPreview {
+  files: HookFileDiff[];
+  /** One dated backup path per file, in the same order. */
+  backups: string[];
   settingsPath: string;
   /** Hand back to hooksApply so only the reviewed diff is ever written. */
   fingerprint: string;
