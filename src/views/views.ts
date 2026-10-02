@@ -71,7 +71,9 @@ function agentWho(task: AgentTask | null, label: string): HTMLElement {
 
 function stack(padLeft: number, padRight: number, ...children: Node[]): HTMLElement {
   const el = h("div", { class: "stack" }, ...children);
-  el.style.padding = `4px ${padRight}px 4px ${padLeft}px`;
+  // Kept as custom properties so the padding can mirror with the island anchor.
+  el.style.setProperty("--pad-l", `${padLeft}px`);
+  el.style.setProperty("--pad-r", `${padRight}px`);
   return el;
 }
 

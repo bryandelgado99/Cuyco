@@ -149,22 +149,24 @@ export function botPosition(
         : { cx: 40, cy: 16, diameter: 20, opacity: 1 };
     case "expanded": {
       const layout = VIEW_LAYOUTS[view];
+      // On the right the panel is mirrored, so the cuy hugs the outer (right) edge.
+      const mirror = (cx: number) => (anchor === "right" ? EXPANDED_W - cx : cx);
       if (view === "uploading") {
         return {
-          cx: 36 + uploadProgress * 526,
+          cx: mirror(36 + uploadProgress * 526),
           cy: layout.botY ?? 103,
           diameter: layout.botDiameter,
           opacity: 1,
         };
       }
       if (layout.botY != null) {
-        return { cx: layout.botX, cy: layout.botY, diameter: layout.botDiameter, opacity: 1 };
+        return { cx: mirror(layout.botX), cy: layout.botY, diameter: layout.botDiameter, opacity: 1 };
       }
       // Centre of the fixed 84 pt card (8 pt top inset + 34 pt header → content at y = 42)
       const headerBottom = 42;
       const cardH = 84;
       const cy = headerBottom + (islandH - headerBottom - cardH) / 2 + cardH / 2;
-      return { cx: layout.botX, cy, diameter: layout.botDiameter, opacity: 1 };
+      return { cx: mirror(layout.botX), cy, diameter: layout.botDiameter, opacity: 1 };
     }
   }
 }

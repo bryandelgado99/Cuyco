@@ -1483,3 +1483,79 @@ input[type="range"]::-webkit-slider-thumb {
 .int-card.detail {
   padding-top: 8px;
 }
+
+/* ── Right anchor: mirror the panel's left-oriented layout ────────────────────
+   The island's content is laid out for a cuy on the left; docked right, every
+   physical padding and row order flips so the cuy hugs the outer edge. */
+.stack {
+  padding: 4px var(--pad-r, 0px) 4px var(--pad-l, 0px);
+}
+
+[data-anchor="right"] .stack {
+  padding: 4px var(--pad-l, 0px) 4px var(--pad-r, 0px);
+}
+
+[data-anchor="right"] #header {
+  flex-direction: row-reverse;
+}
+
+[data-anchor="right"] .tabs {
+  padding-left: 0;
+  padding-right: 14px;
+}
+
+[data-anchor="right"] .header-actions {
+  padding-right: 0;
+  padding-left: 16px;
+}
+
+[data-anchor="right"] .overview {
+  flex-direction: row-reverse;
+}
+
+[data-anchor="right"] .who {
+  padding: 0 108px 0 36px;
+}
+
+[data-anchor="right"] .ticker {
+  margin: 6px 108px 0 12px;
+}
+
+[data-anchor="right"] .int-card {
+  padding: 10px 108px 0 12px;
+}
+
+[data-anchor="right"] .int-head {
+  padding-right: 0;
+  padding-left: 24px;
+}
+
+[data-anchor="right"] .int-stats {
+  padding-right: 0;
+  padding-left: 12px;
+}
+
+[data-anchor="right"] .chat-body {
+  padding: 12px 84px 14px 16px;
+}
+
+[data-anchor="right"] .drop-body {
+  padding-left: 0;
+  padding-right: 196px;
+}
+
+[data-anchor="right"] .jump {
+  right: auto;
+  left: 10px;
+}
+
+[data-anchor="right"] .pill .mini {
+  margin-left: 0;
+  margin-right: 7px;
+}
+
+[data-anchor="right"] .up-row,
+[data-anchor="right"] .up-track {
+  left: auto;
+  right: 26px;
+}
