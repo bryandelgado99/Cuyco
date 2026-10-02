@@ -27,6 +27,9 @@ const HIT_MARGIN = 14;
 /** The three views the drop sequence owns; leaving them stops the engine. */
 const UPLOAD_VIEWS: ReadonlySet<IslandViewName> = new Set(["upload", "uploading", "choose"]);
 
+/** The agents panel: hidden entirely in "cuy only" mode. */
+const AGENT_VIEWS: ReadonlySet<IslandViewName> = new Set(["overview", "empty"]);
+
 /** Seconds between the drop and the moment the progress bar starts filling. */
 const PRE_PROGRESS = USC.T_PROG_START - USC.T_DROP;
 
@@ -291,6 +294,11 @@ export class Island {
   }
 
   expand(view: IslandViewName) {
+    if (State.settings.hideAgents && AGENT_VIEWS.has(view)) {
+      // Cuy only: there is no agents panel to open, so stay the pill.
+      this.fsm.forcePetit();
+      return;
+    }
     this.stopSequenceIfLeaving(view);
     State.view = view;
     if (State.mode !== "expanded") this.setMode("expanded");
@@ -301,6 +309,10 @@ export class Island {
   }
 
   setView(view: IslandViewName) {
+    if (State.settings.hideAgents && AGENT_VIEWS.has(view)) {
+      this.collapse();
+      return;
+    }
     this.stopSequenceIfLeaving(view);
     if (State.mode !== "expanded") {
       this.fsm.forceHome();
@@ -895,7 +907,7 @@ export class Island {
     }
 
     // Compact mini grid
-    const showGrid = State.mode === "compact";
+    const showGrid = State.mode === "compact" && !State.settings.hideAgents;
     this.miniGrid.style.opacity = showGrid ? "1" : "0";
     if (showGrid) {
       const others = State.otherTasks.slice(0, 4);
@@ -920,6 +932,9 @@ export class Island {
     Sound.setVolume(State.settings.soundVolume);
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
     this.setAnchor(State.settings.position);
+    if (State.settings.hideAgents && State.mode === "expanded" && AGENT_VIEWS.has(State.view)) {
+      this.collapse();
+    }
     State.notify();
   }
 

@@ -92,10 +92,11 @@ export function buildHeader(actions: ViewActions): ViewHost {
     actions.setView(v);
   }
 
+  const tabsEl = h("div", { class: "tabs" }, tabHome, tabChat, tabDrop);
   const el = h(
     "div",
     { id: "header" },
-    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop),
+    tabsEl,
     h("div", { class: "header-actions" }, gearBtn, soundBtn),
   );
 
@@ -103,6 +104,8 @@ export function buildHeader(actions: ViewActions): ViewHost {
     el,
     sync() {
       const v = State.view;
+      // Cuy only hides the tabs; the gear and sound stay, so Settings is reachable.
+      tabsEl.style.display = State.settings.hideAgents ? "none" : "";
       const home = v === "overview" || v === "empty";
       tabHome.classList.toggle("on", home);
       tabChat.classList.toggle("on", v === "prompt");
