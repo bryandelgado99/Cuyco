@@ -463,6 +463,12 @@ button:disabled {
   flex: 1 1 auto;
 }
 
+/* Cuy only: the agents grid is gone, so the left card takes the whole width. */
+.overview.no-agents > .left {
+  flex: 1 1 auto;
+  width: auto;
+}
+
 .card-body {
   position: relative;
   z-index: 1;

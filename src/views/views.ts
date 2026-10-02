@@ -104,8 +104,6 @@ export function buildHeader(actions: ViewActions): ViewHost {
     el,
     sync() {
       const v = State.view;
-      // Cuy only hides the tabs; the gear and sound stay, so Settings is reachable.
-      tabsEl.style.display = State.settings.hideAgents ? "none" : "";
       const home = v === "overview" || v === "empty";
       tabHome.classList.toggle("on", home);
       tabChat.classList.toggle("on", v === "prompt");
@@ -174,6 +172,12 @@ function buildOverview(actions: ViewActions): ViewHost {
       if (mode === "ticker") ticker.tick(nowMs);
     },
     sync() {
+      // Cuy only hides the agents grid (the small cuys with the connected APIs),
+      // not the header or the rest of the overview.
+      const hideAgents = State.settings.hideAgents;
+      right.style.display = hideAgents ? "none" : "";
+      el.classList.toggle("no-agents", hideAgents);
+
       const task = State.focusTask;
       if (task?.id !== lastFocus) {
         lastFocus = task?.id ?? null;
@@ -224,7 +228,7 @@ function buildOverview(actions: ViewActions): ViewHost {
 
       jump.style.display = detailOpen ? "none" : "";
 
-      const others = State.otherTasks.slice(0, 4);
+      const others = hideAgents ? [] : State.otherTasks.slice(0, 4);
       const pillKey = others.map((t) => `${t.id}:${t.pillBadge ?? ""}`).join("|");
       if (pillKey !== pillIds) {
         pillIds = pillKey;

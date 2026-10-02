@@ -27,9 +27,6 @@ const HIT_MARGIN = 14;
 /** The three views the drop sequence owns; leaving them stops the engine. */
 const UPLOAD_VIEWS: ReadonlySet<IslandViewName> = new Set(["upload", "uploading", "choose"]);
 
-/** The agents panel: hidden entirely in "cuy only" mode. */
-const AGENT_VIEWS: ReadonlySet<IslandViewName> = new Set(["overview", "empty"]);
-
 /** Views that hold text fields, so the island has to take keyboard focus. */
 const FOCUS_VIEWS: ReadonlySet<IslandViewName> = new Set(["prompt", "settings"]);
 
@@ -296,11 +293,6 @@ export class Island {
   }
 
   expand(view: IslandViewName) {
-    if (State.settings.hideAgents && AGENT_VIEWS.has(view)) {
-      // Cuy only: there is no agents panel to open, so stay the pill.
-      this.fsm.forcePetit();
-      return;
-    }
     this.stopSequenceIfLeaving(view);
     State.view = view;
     if (State.mode !== "expanded") this.setMode("expanded");
@@ -311,10 +303,6 @@ export class Island {
   }
 
   setView(view: IslandViewName) {
-    if (State.settings.hideAgents && AGENT_VIEWS.has(view)) {
-      this.collapse();
-      return;
-    }
     this.stopSequenceIfLeaving(view);
     if (State.mode !== "expanded") {
       this.fsm.forceHome();
@@ -883,6 +871,9 @@ export class Island {
   // ── DOM sync ────────────────────────────────────────────────────────────────
 
   private syncDom() {
+    // Reconcile the settings the island renders itself, so a change lands even
+    // before (or without) the Rust echo.
+    this.setAnchor(State.settings.position);
     const expanded = State.mode === "expanded";
     const greetingActive = expanded && State.view === "greeting";
 
@@ -939,9 +930,6 @@ export class Island {
     Sound.setVolume(State.settings.soundVolume);
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
     this.setAnchor(State.settings.position);
-    if (State.settings.hideAgents && State.mode === "expanded" && AGENT_VIEWS.has(State.view)) {
-      this.collapse();
-    }
     State.notify();
   }
 
