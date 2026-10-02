@@ -1,22 +1,6 @@
-/* Settings window — same palette as the island, laid out as a normal window. */
+/* Settings window — shares the island's design tokens (tokens.css). */
 
-:root {
-  /* Makes Windows render the native dropdown and scrollbars dark — without it
-     the <select> popup is white text on white. */
-  color-scheme: dark;
-
-  --font: system-ui, "Segoe UI Variable Text", "Segoe UI", sans-serif;
-  --mono: "Cascadia Mono", "Consolas", ui-monospace, monospace;
-  --ink: #f5f6f8;
-  --dim: #9398a1;
-  --dim-2: #6b7079;
-  --bg: #0b0c0e;
-  --card: #141518;
-  --hairline: rgba(255, 255, 255, 0.07);
-  --green: #22c55e;
-  --red: #f4505e;
-  --amber: #f5a524;
-}
+@import "../tokens.css";
 
 * {
   box-sizing: border-box;
@@ -25,7 +9,7 @@
 }
 
 body.settings-window {
-  background: var(--bg);
+  background: var(--md-surface);
   color: var(--ink);
   font: 400 13px/1.45 var(--font);
   -webkit-font-smoothing: antialiased;

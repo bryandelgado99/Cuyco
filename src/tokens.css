@@ -1,0 +1,230 @@
+/* Cuyco design tokens — the single source of truth for colour roles, shape,
+   motion, type and state. Imported by both the island (style.css) and the
+   settings window (settings.css).
+
+   Colour roles ship in a light and a dark set. `data-theme` on <html> forces
+   one ("light" / "dark"); when it is absent the OS preference wins, so the app
+   follows the system by default. */
+
+:root {
+  --font: system-ui, "Segoe UI Variable Text", "Segoe UI", "Segoe UI Emoji", sans-serif;
+  --mono: "Cascadia Mono", "Consolas", ui-monospace, monospace;
+
+  /* ── Shape scale (M3 Expressive) ─────────────────────────────────────────── */
+  --md-shape-xs: 4px;
+  --md-shape-s: 8px;
+  --md-shape-m: 12px;
+  --md-shape-l: 16px;
+  --md-shape-xl: 28px;
+  --md-shape-full: 999px;
+
+  /* ── Motion ──────────────────────────────────────────────────────────────── */
+  --md-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --md-ease-decel: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --md-ease-accel: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --md-ease-pressed: cubic-bezier(0.3, 1.4, 0.5, 1);
+  --md-dur-short: 150ms;
+  --md-dur-medium: 300ms;
+  --md-dur-long: 500ms;
+
+  /* ── State layers (M3) ───────────────────────────────────────────────────── */
+  --md-state-hover: 0.08;
+  --md-state-press: 0.12;
+
+  /* ── Type scale (M3 roles on the system stack) ───────────────────────────── */
+  --md-font-title-large: 600 15px/1.25 var(--font);
+  --md-font-title-medium: 600 13px/1.3 var(--font);
+  --md-font-title-small: 600 12px/1.3 var(--font);
+  --md-font-body-large: 400 13px/1.4 var(--font);
+  --md-font-body-medium: 400 12.5px/1.4 var(--font);
+  --md-font-body-small: 400 11.5px/1.35 var(--font);
+  --md-font-label-large: 500 12.5px/1.2 var(--font);
+  --md-font-label-medium: 500 11px/1.2 var(--font);
+  --md-font-label-small: 500 10px/1.2 var(--font);
+
+  /* ── Brand ───────────────────────────────────────────────────────────────── */
+  --cuy-cream: #f6e8d2;
+  --cuy-caramel: #cba66e;
+  --md-scrim: #000;
+
+  /* ── Legacy aliases → roles ──────────────────────────────────────────────────
+     Kept so untouched rules keep working while components migrate onto the M3
+     roles; each is removed as its consumer is rewritten. */
+  --ink: var(--md-on-surface);
+  --ink-2: var(--md-on-surface);
+  --dim: var(--md-on-surface-variant);
+  --dim-2: var(--md-on-surface-variant);
+  --dim-3: var(--md-outline);
+  --dim-4: var(--md-outline);
+  --dim-5: var(--md-outline-variant);
+  --card: var(--md-surface-container);
+  --card-flat: var(--md-surface-container-low);
+  --tab-on: var(--md-surface-container-high);
+  --hairline: var(--md-outline-variant);
+  --red: var(--md-error);
+  --red-text: var(--md-error);
+  --green: var(--md-success);
+  --green-2: var(--md-success);
+  --amber: var(--md-warning);
+  --cyan: var(--md-tertiary);
+  --indigo: var(--md-primary);
+  --pink: var(--md-tertiary);
+}
+
+/* ── Dark (default) ─────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: dark;
+
+  --md-surface: #141218;
+  --md-surface-dim: #100e13;
+  --md-surface-bright: #3b383e;
+  --md-surface-container-lowest: #0f0d13;
+  --md-surface-container-low: #1d1b20;
+  --md-surface-container: #211f26;
+  --md-surface-container-high: #2b2930;
+  --md-surface-container-highest: #36343b;
+
+  --md-on-surface: #e6e0e9;
+  --md-on-surface-variant: #cac4d0;
+  --md-outline: #938f99;
+  --md-outline-variant: #49454f;
+
+  --md-primary: #d0bcff;
+  --md-on-primary: #381e72;
+  --md-primary-container: #4f378b;
+  --md-on-primary-container: #eaddff;
+
+  --md-secondary: #d8c6a8;
+  --md-on-secondary: #3d2f17;
+  --md-secondary-container: #53452e;
+  --md-on-secondary-container: #f5e0bf;
+
+  --md-tertiary: #e8b8c8;
+  --md-on-tertiary: #4a2532;
+  --md-tertiary-container: #633b47;
+  --md-on-tertiary-container: #ffd9e4;
+
+  --md-error: #f2b8b5;
+  --md-on-error: #601410;
+  --md-error-container: #8c1d18;
+  --md-on-error-container: #f9dedc;
+
+  --md-success: #6dd58c;
+  --md-on-success: #003912;
+  --md-success-container: #1f4d2f;
+  --md-on-success-container: #a6f4b8;
+
+  --md-warning: #f5a524;
+  --md-on-warning: #3d2f00;
+  --md-warning-container: #5b4300;
+  --md-on-warning-container: #ffdf9e;
+
+  --md-inverse-surface: #e6e0e9;
+  --md-inverse-on-surface: #322f35;
+}
+
+/* ── Light (system preference) ──────────────────────────────────────────────── */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+
+    --md-surface: #fef7ff;
+    --md-surface-dim: #ded8e1;
+    --md-surface-bright: #fef7ff;
+    --md-surface-container-lowest: #ffffff;
+    --md-surface-container-low: #f7f2fa;
+    --md-surface-container: #f3edf7;
+    --md-surface-container-high: #ece6f0;
+    --md-surface-container-highest: #e6e0e9;
+
+    --md-on-surface: #1d1b20;
+    --md-on-surface-variant: #49454f;
+    --md-outline: #79747e;
+    --md-outline-variant: #cac4d0;
+
+    --md-primary: #6750a4;
+    --md-on-primary: #ffffff;
+    --md-primary-container: #eaddff;
+    --md-on-primary-container: #21005d;
+
+    --md-secondary: #63583d;
+    --md-on-secondary: #ffffff;
+    --md-secondary-container: #eadfc0;
+    --md-on-secondary-container: #201b06;
+
+    --md-tertiary: #7d5260;
+    --md-on-tertiary: #ffffff;
+    --md-tertiary-container: #ffd9e4;
+    --md-on-tertiary-container: #31111d;
+
+    --md-error: #b3261e;
+    --md-on-error: #ffffff;
+    --md-error-container: #f9dedc;
+    --md-on-error-container: #410e0b;
+
+    --md-success: #2e7d43;
+    --md-on-success: #ffffff;
+    --md-success-container: #b6f0c2;
+    --md-on-success-container: #00210b;
+
+    --md-warning: #8a5a00;
+    --md-on-warning: #ffffff;
+    --md-warning-container: #ffdf9e;
+    --md-on-warning-container: #2b1700;
+
+    --md-inverse-surface: #322f35;
+    --md-inverse-on-surface: #f5eff7;
+  }
+}
+
+/* ── Light (forced) ─────────────────────────────────────────────────────────── */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --md-surface: #fef7ff;
+  --md-surface-dim: #ded8e1;
+  --md-surface-bright: #fef7ff;
+  --md-surface-container-lowest: #ffffff;
+  --md-surface-container-low: #f7f2fa;
+  --md-surface-container: #f3edf7;
+  --md-surface-container-high: #ece6f0;
+  --md-surface-container-highest: #e6e0e9;
+
+  --md-on-surface: #1d1b20;
+  --md-on-surface-variant: #49454f;
+  --md-outline: #79747e;
+  --md-outline-variant: #cac4d0;
+
+  --md-primary: #6750a4;
+  --md-on-primary: #ffffff;
+  --md-primary-container: #eaddff;
+  --md-on-primary-container: #21005d;
+
+  --md-secondary: #63583d;
+  --md-on-secondary: #ffffff;
+  --md-secondary-container: #eadfc0;
+  --md-on-secondary-container: #201b06;
+
+  --md-tertiary: #7d5260;
+  --md-on-tertiary: #ffffff;
+  --md-tertiary-container: #ffd9e4;
+  --md-on-tertiary-container: #31111d;
+
+  --md-error: #b3261e;
+  --md-on-error: #ffffff;
+  --md-error-container: #f9dedc;
+  --md-on-error-container: #410e0b;
+
+  --md-success: #2e7d43;
+  --md-on-success: #ffffff;
+  --md-success-container: #b6f0c2;
+  --md-on-success-container: #00210b;
+
+  --md-warning: #8a5a00;
+  --md-on-warning: #ffffff;
+  --md-warning-container: #ffdf9e;
+  --md-on-warning-container: #2b1700;
+
+  --md-inverse-surface: #322f35;
+  --md-inverse-on-surface: #f5eff7;
+}

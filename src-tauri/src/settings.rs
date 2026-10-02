@@ -20,10 +20,18 @@ pub struct Settings {
     /// Defaulted explicitly so a settings.json written by an older build still loads.
     #[serde(default = "default_model")]
     pub model: String,
+    /// "system" (follow the OS), "light" or "dark". Defaulted so an older
+    /// settings.json still loads.
+    #[serde(default = "default_theme")]
+    pub theme: String,
 }
 
 fn default_model() -> String {
     crate::claude::DEFAULT_MODEL.to_string()
+}
+
+fn default_theme() -> String {
+    "system".into()
 }
 
 impl Default for Settings {
@@ -43,6 +51,7 @@ impl Default for Settings {
             autostart: false,
             hooks_installed: false,
             model: default_model(),
+            theme: default_theme(),
         }
     }
 }

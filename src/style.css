@@ -1,66 +1,7 @@
-/* Cuyco — dark UI built on Material 3 Expressive tokens: colour roles, the M3
-   shape scale and the emphasised motion curves. The island's own palette is kept
-   so the views keep their positions; the --md-* tokens carry the design language. */
+/* Cuyco island styles. The design tokens (colour roles, shape, motion, type and
+   state) live in tokens.css, shared with the settings window. */
 
-:root {
-  color-scheme: dark;
-
-  --font: system-ui, "Segoe UI Variable Text", "Segoe UI", "Segoe UI Emoji", sans-serif;
-  --mono: "Cascadia Mono", "Consolas", ui-monospace, monospace;
-
-  --ink: #f5f6f8;        /* primary text */
-  --ink-2: #f1f2f4;
-  --dim: #9398a1;
-  --dim-2: #8e939c;
-  --dim-3: #6b7079;
-  --dim-4: #5f646d;
-  --dim-5: #4b5563;
-  --card: #141518;
-  --card-flat: #0e0f11;
-  --tab-on: #1d1f23;
-  --hairline: rgba(255, 255, 255, 0.035);
-  --red: #f4505e;
-  --red-text: #ff8d97;
-  --green: #22c55e;
-  --green-2: #34d399;
-  --amber: #f5a524;
-  --cyan: #22d3ee;
-  --indigo: #6366f1;
-  --pink: #f472b6;
-
-  /* ── Material 3 Expressive — shape scale ─────────────────────────────────── */
-  --md-shape-xs: 4px;
-  --md-shape-s: 8px;
-  --md-shape-m: 12px;
-  --md-shape-l: 16px;
-  --md-shape-xl: 28px;
-  --md-shape-full: 999px;
-
-  /* ── Material 3 Expressive — motion ──────────────────────────────────────── */
-  --md-ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
-  --md-ease-decel: cubic-bezier(0.05, 0.7, 0.1, 1);
-  --md-ease-accel: cubic-bezier(0.3, 0, 0.8, 0.15);
-  --md-dur-short: 150ms;
-  --md-dur-medium: 300ms;
-  --md-dur-long: 500ms;
-
-  /* ── Material 3 — dark colour roles ──────────────────────────────────────── */
-  --md-surface: #141218;
-  --md-surface-container-low: #1d1b20;
-  --md-surface-container: #211f26;
-  --md-surface-container-high: #2b2930;
-  --md-on-surface: #e6e0e9;
-  --md-on-surface-variant: #cac4d0;
-  --md-outline: #938f99;
-  --md-outline-variant: #49454f;
-  --md-primary: #d0bcff;
-  --md-on-primary: #381e72;
-  --md-error: #f2b8b5;
-
-  /* ── Material 3 — state layers ───────────────────────────────────────────── */
-  --md-state-hover: 0.08;
-  --md-state-press: 0.12;
-}
+@import "./tokens.css";
 
 * {
   box-sizing: border-box;
@@ -103,7 +44,7 @@ body {
   position: absolute;
   top: 0;
   left: 50%;
-  background: #000;
+  background: var(--md-surface);
   border-radius: 0 0 var(--md-shape-l) var(--md-shape-l);
   overflow: visible;
   will-change: width, height, transform;
