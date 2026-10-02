@@ -407,6 +407,18 @@ function generalSection(): HTMLElement {
     void save();
   });
 
+  const position = h("select", {}) as HTMLSelectElement;
+  position.append(
+    h("option", { value: "top", text: "Top" }),
+    h("option", { value: "left", text: "Left" }),
+    h("option", { value: "right", text: "Right" }),
+  );
+  position.value = settings.position;
+  position.addEventListener("change", () => {
+    settings.position = position.value as Settings["position"];
+    void save();
+  });
+
   return h(
     "section",
     {},
@@ -428,6 +440,16 @@ function generalSection(): HTMLElement {
     h("div", { class: "row" },
       h("label", { text: "Appearance" }),
       theme,
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Position" }),
+      position,
+      h("span", { class: "hint", text: "where the island sits on screen" }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Cuy only" }),
+      toggle(settings.hideAgents, (v) => { settings.hideAgents = v; void save(); }),
+      h("span", { class: "hint", text: "hide the agents panel" }),
     ),
     h("div", { class: "row" },
       h("label", { text: "Launch at startup" }),

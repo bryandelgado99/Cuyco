@@ -24,6 +24,12 @@ pub struct Settings {
     /// settings.json still loads.
     #[serde(default = "default_theme")]
     pub theme: String,
+    /// Where the island docks: "top", "left" or "right".
+    #[serde(default = "default_position")]
+    pub position: String,
+    /// "Cuy only": hide the agents panel (pills, mini-grid, overview, tabs).
+    #[serde(default = "default_hide_agents")]
+    pub hide_agents: bool,
 }
 
 fn default_model() -> String {
@@ -32,6 +38,14 @@ fn default_model() -> String {
 
 fn default_theme() -> String {
     "system".into()
+}
+
+fn default_position() -> String {
+    "top".into()
+}
+
+fn default_hide_agents() -> bool {
+    false
 }
 
 impl Default for Settings {
@@ -52,6 +66,8 @@ impl Default for Settings {
             hooks_installed: false,
             model: default_model(),
             theme: default_theme(),
+            position: default_position(),
+            hide_agents: default_hide_agents(),
         }
     }
 }

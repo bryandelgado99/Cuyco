@@ -95,6 +95,10 @@ export interface Settings {
   model: string;
   /** "system" follows the OS; "light" / "dark" force one. */
   theme: Theme;
+  /** Where the island docks. */
+  position: "top" | "left" | "right";
+  /** Hide the agents panel (pills, mini-grid, overview, tabs). */
+  hideAgents: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -110,6 +114,8 @@ export const DEFAULT_SETTINGS: Settings = {
   hooksInstalled: false,
   model: "claude-opus-5",
   theme: "system",
+  position: "top",
+  hideAgents: false,
 };
 
 type Listener = () => void;
