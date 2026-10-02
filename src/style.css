@@ -1762,3 +1762,42 @@ input[type="range"]::-webkit-slider-thumb {
   outline: none;
   border-color: var(--md-primary);
 }
+
+/* ── Side anchors: a narrow vertical card ─────────────────────────────────────
+   Left/right the island is a 320-wide column: the overview stacks, and the fixed
+   640-wide gutters shrink so the content actually uses the width. The right side
+   is mirrored as well. */
+[data-anchor="left"] .overview,
+[data-anchor="right"] .overview {
+  flex-direction: column;
+}
+
+[data-anchor="left"] .overview > .left,
+[data-anchor="right"] .overview > .left {
+  flex: 1 1 auto;
+  width: auto;
+}
+
+[data-anchor="left"] .who { padding: 0 12px 0 84px; }
+[data-anchor="right"] .who { padding: 0 84px 0 12px; }
+
+[data-anchor="left"] .ticker { margin: 6px 12px 0 84px; }
+[data-anchor="right"] .ticker { margin: 6px 84px 0 12px; }
+
+[data-anchor="left"] .int-card { padding: 10px 12px 0 84px; }
+[data-anchor="right"] .int-card { padding: 10px 84px 0 12px; }
+
+[data-anchor="left"] .int-head { padding-right: 12px; }
+[data-anchor="right"] .int-head { padding-right: 0; padding-left: 12px; }
+
+[data-anchor="left"] .int-stats { padding-right: 12px; }
+[data-anchor="right"] .int-stats { padding-right: 0; padding-left: 12px; }
+
+[data-anchor="left"] .chat-body { padding: 12px 12px 14px 84px; }
+[data-anchor="right"] .chat-body { padding: 12px 84px 14px 12px; }
+
+[data-anchor="left"] .drop-body { padding-left: 84px; }
+[data-anchor="right"] .drop-body { padding-left: 0; padding-right: 84px; }
+
+[data-anchor="left"] .stack { padding: 4px 12px 4px 84px !important; }
+[data-anchor="right"] .stack { padding: 4px 84px 4px 12px !important; }

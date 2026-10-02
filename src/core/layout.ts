@@ -71,6 +71,27 @@ export const SIDE_W = 320;
 export const SIDE_PILL_W = 56;
 export const SIDE_PILL_H = 160;
 
+/** Heights for the narrow side column (the 640-wide VIEW_LAYOUTS do not fit). */
+const SIDE_VIEW_HEIGHTS: Record<IslandViewName, number> = {
+  overview: 230,
+  empty: 200,
+  approval: 210,
+  question: 190,
+  error: 210,
+  finished: 200,
+  confused: 210,
+  upload: 176,
+  uploading: 176,
+  choose: 176,
+  mail: 200,
+  prompt: 300, // not used: the chat keeps chatPromptHeight
+  searching: 160,
+  result: 160,
+  note: 180,
+  settings: 300,
+  greeting: 150,
+};
+
 /** Invisible hover strip that wakes the island when hidden. */
 export const WAKE_STRIP_W = 240;
 export const WAKE_STRIP_H = 6;
@@ -122,6 +143,10 @@ export function islandSize(
     case "compact":
       return side ? { w: SIDE_PILL_W, h: SIDE_PILL_H } : { w: COMPACT_W, h: NOTCH_H };
     case "expanded": {
+      if (side) {
+        const h = view === "prompt" ? chatPromptHeight(chatCount) : SIDE_VIEW_HEIGHTS[view];
+        return { w: SIDE_W, h };
+      }
       const h = view === "prompt" ? chatPromptHeight(chatCount) : VIEW_LAYOUTS[view].height;
       return { w: EXPANDED_W, h };
     }
