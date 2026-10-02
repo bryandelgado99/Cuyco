@@ -224,20 +224,20 @@ export type Wash = "red" | "green" | "pink" | "amber" | "cyan" | "indigo" | "sof
 export function washRGBA(wash: Wash): string {
   switch (wash) {
     case "red":
-      return "rgba(244,80,94,0.55)";
+      return "color-mix(in srgb, var(--md-error) 55%, transparent)";
     case "green":
-      return "rgba(52,211,153,0.5)";
+      return "color-mix(in srgb, var(--md-success) 50%, transparent)";
     case "pink":
-      return "rgba(244,114,182,0.55)";
+      return "color-mix(in srgb, var(--md-tertiary) 55%, transparent)";
     case "amber":
-      return "rgba(245,165,36,0.42)";
+      return "color-mix(in srgb, var(--md-warning) 42%, transparent)";
     case "cyan":
-      return "rgba(34,211,238,0.38)";
+      return "color-mix(in srgb, var(--md-primary) 42%, transparent)";
     case "indigo":
-      return "rgba(99,102,241,0.5)";
+      return "color-mix(in srgb, var(--md-primary) 50%, transparent)";
     case "soft":
-      return "rgba(255,255,255,0.08)";
+      return "color-mix(in srgb, var(--md-on-surface) 8%, transparent)";
     default:
-      return "rgba(0,0,0,0)";
+      return "transparent";
   }
 }

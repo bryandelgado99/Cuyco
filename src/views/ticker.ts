@@ -32,13 +32,13 @@ interface Row {
 function makeRow(): Row {
   const chevron = svg(ICONS.chevronRight, 9);
   const check = svg(ICONS.check, 8);
-  check.style.color = "#454850"; // the completed tick is dimmer than the chevron
+  check.style.color = "var(--md-outline)"; // the completed tick is dimmer than the chevron
   check.style.position = "absolute";
   chevron.style.position = "absolute";
   const shimmer = h("span", { class: "tick-text shimmer" });
   const dim = h("span", {
     class: "tick-text",
-    style: "position:absolute;left:0;right:0;color:#6b7079",
+    style: "position:absolute;left:0;right:0;color:var(--md-on-surface-variant)",
   });
   const el = h(
     "div",

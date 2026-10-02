@@ -53,7 +53,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     { class: "view" },
     h("div", { class: "card wash chat-card" }, h("div", { class: "chat-body" }, chipRow, log, bar)),
   );
-  (el.querySelector(".card") as HTMLElement).style.setProperty("--wash", "rgba(99,102,241,0.5)");
+  (el.querySelector(".card") as HTMLElement).style.setProperty("--wash", "color-mix(in srgb, var(--md-primary) 50%, transparent)");
 
   let sending = false;
   let renderedCount = -1;

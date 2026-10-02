@@ -103,7 +103,7 @@ function idleCard(task: AgentTask, openSettings: () => void): HTMLElement {
     );
   } else {
     actions.append(
-      h("button", { class: "link-btn", style: "color:#8e939c", text: "Settings…", onclick: openSettings }),
+      h("button", { class: "link-btn", style: "color:var(--md-on-surface-variant)", text: "Settings…", onclick: openSettings }),
     );
   }
 
@@ -224,7 +224,7 @@ function githubCard(): HTMLElement {
       "div",
       { class: "int-stats" },
       statRow(ICONS.star, "#F5A524", "Total stars", fmt(stars)),
-      statRow(ICONS.stack, "#6B7079", "Repositories", String(repos)),
+      statRow(ICONS.stack, "var(--md-outline)", "Repositories", String(repos)),
     ),
   );
 }

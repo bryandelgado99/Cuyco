@@ -444,7 +444,7 @@ function buildSettings(actions: ViewActions): ViewHost {
       h("div", { class: "grow" }),
       h("button", {
         class: "link-btn",
-        style: "color:#8e939c;font-size:11.5px",
+        style: "color:var(--md-on-surface-variant);font-size:11.5px",
         text: "Settings…",
         onclick: () => actions.openSettingsWindow(),
       }),
@@ -465,11 +465,11 @@ function buildSettings(actions: ViewActions): ViewHost {
       segButtons.forEach((b, i) => b.classList.toggle("on", s.autoCloseInterval === [10, 15, 30][i]));
       clear(claudeBadge);
       claudeBadge.append(
-        dot(s.hooksInstalled ? "#22C55E" : "#F4505E", 6),
+        dot(s.hooksInstalled ? "var(--md-success)" : "var(--md-error)", 6),
         h("span", { text: "Claude Code" }),
       );
       clear(apiBadge);
-      apiBadge.append(dot("#F4505E", 6), h("span", { text: "API" }));
+      apiBadge.append(dot("var(--md-error)", 6), h("span", { text: "API" }));
     },
   };
 }
