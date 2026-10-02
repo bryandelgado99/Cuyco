@@ -50,13 +50,31 @@ const CLAUDE_EVENTS: &[(&str, u64)] = &[
     ("SubagentStop", 10),
 ];
 
-pub const AGENTS: &[Agent] = &[Agent {
-    id: "claude",
-    name: "Claude Code",
-    tag: None,
-    events: CLAUDE_EVENTS,
-    config: claude_settings_path,
-}];
+/// Command Code's four hook events. It has no permission, prompt or subagent
+/// events, so those simply never arrive from it.
+const COMMAND_CODE_EVENTS: &[(&str, u64)] = &[
+    ("SessionStart", 10),
+    ("PreToolUse", 10),
+    ("PostToolUse", 10),
+    ("Stop", 10),
+];
+
+pub const AGENTS: &[Agent] = &[
+    Agent {
+        id: "claude",
+        name: "Claude Code",
+        tag: None,
+        events: CLAUDE_EVENTS,
+        config: claude_settings_path,
+    },
+    Agent {
+        id: "commandcode",
+        name: "Command Code",
+        tag: Some("commandcode"),
+        events: COMMAND_CODE_EVENTS,
+        config: commandcode_settings_path,
+    },
+];
 
 /// Marker that identifies a Cuyco entry inside an agent's config.
 const MARKER: &str = "cuyco-hook";
@@ -89,6 +107,14 @@ pub fn agent(id: &str) -> Option<&'static Agent> {
 
 fn claude_settings_path() -> PathBuf {
     platform::home_dir().join(".claude").join("settings.json")
+}
+
+/// The user-scope file, so one install covers every project. Command Code also
+/// reads a project-level `.commandcode/settings.json`, which wins over this one:
+/// a project that ships its own hooks is left alone, but ours still fire
+/// everywhere else.
+fn commandcode_settings_path() -> PathBuf {
+    platform::home_dir().join(".commandcode").join("settings.json")
 }
 
 /// The agent's config path.
@@ -628,6 +654,19 @@ mod tests {
         assert!(!command_is_ours("someone-else.exe", &codex));
         // "code" is a prefix of "codex": matching must not be that loose.
         assert!(!command_is_ours("\"x/cuyco-hook.exe\" --agent codex Stop", &cc));
+    }
+
+    #[test]
+    fn the_registry_covers_every_agent_we_ship() {
+        let ids: Vec<&str> = AGENTS.iter().map(|a| a.id).collect();
+        assert_eq!(ids, ["claude", "commandcode"]);
+        // Claude Code is the only untagged entry: every other agent must carry a
+        // tag, or its entries and Claude's would be indistinguishable.
+        assert_eq!(AGENTS.iter().filter(|a| a.tag.is_none()).count(), 1);
+        // Every agent points at a real file below the user's home.
+        for a in AGENTS {
+            assert!(settings_path(a).starts_with(platform::home_dir()), "{}", a.id);
+        }
     }
 
     #[test]

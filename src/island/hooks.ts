@@ -78,8 +78,33 @@ const TOOL_LABELS: Record<string, string> = {
   PowerShell: "Exécute",
 };
 
-function stepLabel(tool: string, input: Record<string, unknown>): string {
-  const label = TOOL_LABELS[tool] ?? tool;
+/** Command Code names its tools differently; its `tool_name` is the canonical id. */
+const COMMAND_CODE_LABELS: Record<string, string> = {
+  shell_command: "Exécute",
+  read_file: "Lit",
+  write_file: "Écrit",
+  edit_file: "Modifie",
+};
+
+/** Per-agent tool vocabularies, keyed by the relay's `cuyco_agent` tag. */
+const AGENT_TOOL_LABELS: Record<string, Record<string, string>> = {
+  commandcode: COMMAND_CODE_LABELS,
+};
+
+/** Tags are lowercase ids; the pill deserves the real name. */
+const AGENT_NAMES: Record<string, string> = {
+  claude: "Claude Code",
+  commandcode: "Command Code",
+  codex: "Codex",
+  opencode: "OpenCode",
+};
+
+function agentName(tag: string): string {
+  return AGENT_NAMES[tag] ?? tag;
+}
+
+function stepLabel(tool: string, input: Record<string, unknown>, agent: string | null = null): string {
+  const label = (agent ? AGENT_TOOL_LABELS[agent]?.[tool] : undefined) ?? TOOL_LABELS[tool] ?? tool;
   const str = (k: string) => (typeof input[k] === "string" ? (input[k] as string) : null);
   const cmd = str("command");
   if (cmd) return `${label} · ${cmd.slice(0, 40)}`;
@@ -87,6 +112,9 @@ function stepLabel(tool: string, input: Record<string, unknown>): string {
   if (path) return `${label} · ${lastPathComponent(path)}`;
   const file = str("file_path");
   if (file) return `${label} · ${lastPathComponent(file)}`;
+  // Command Code's read_file carries absolute_path rather than path.
+  const absolute = str("absolute_path");
+  if (absolute) return `${label} · ${lastPathComponent(absolute)}`;
   const query = str("query");
   if (query) return `${label} · ${query.slice(0, 40)}`;
   return label;
@@ -176,7 +204,7 @@ function handleHook(island: Island, payload: HookPayload) {
   /** Ensure the agent pill exists (no-op for Claude Code). */
   const ensurePill = () => {
     if (isExternalAgent) {
-      State.upsertExternalAgent(agentId, validAgent!, agentColor(validAgent!));
+      State.upsertExternalAgent(agentId, agentName(validAgent!), agentColor(validAgent!));
     } else {
       upsert(projectName, cwd);
     }
@@ -203,7 +231,7 @@ function handleHook(island: Island, payload: HookPayload) {
       ensurePill();
       State.updateTask(agentId, "working");
       const tool = payload.tool_name ?? "Tool";
-      State.appendStep(agentId, stepLabel(tool, payload.tool_input ?? {}));
+      State.appendStep(agentId, stepLabel(tool, payload.tool_input ?? {}, validAgent));
       surface("overview", false);
       break;
     }
